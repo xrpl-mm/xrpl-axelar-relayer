@@ -1,31 +1,41 @@
-import { inMemoryCache } from "./in_memory_cache.ts";
-import { isPOSTPayloadRequest } from "./types.ts";
+import express, { NextFunction, Request, Response } from "express";
+import { inMemoryCache } from "./in_memory_cache";
 
-export const server: Deno.ServeHandler<Deno.NetAddr> = async (req) => {
-  if (req.method !== `POST`) {
-    return new Response(JSON.stringify({ message: "Method not allowed" }), {
-      status: 405,
-    });
-  }
-  const url = new URL(req.url);
-  if (url.pathname !== `/payload-from-xrpl`) {
-    return new Response(JSON.stringify({ message: "Not found" }), {
-      status: 404,
-    });
+export const runServer = () => {
+  const app = express();
+  const port = 3000;
+
+  // Middleware to parse JSON bodies
+  app.use(express.json());
+
+  function isPOSTPayloadRequest(body: any): boolean {
+    return body && typeof body.payload !== "undefined"; // Adjust validation as needed
   }
 
-  if (req.body) {
-    const body = await req.json();
+  // POST route to handle payloads from XRPL
+  app.post("/payload-from-xrpl", (req: Request, res: Response): void => {
+    const body = req.body;
 
     if (isPOSTPayloadRequest(body)) {
-      console.log("Payload received: ", body.payload);
       inMemoryCache.addPayloadFromXRPL(body.payload);
-
-      return new Response(JSON.stringify({ message: "Payload received" }));
+      res.json({ message: "Payload received" });
+      return;
     }
-  }
 
-  return new Response(JSON.stringify({ message: "Bad request" }), {
-    status: 400,
+    res.status(400).json({ message: "Bad request" });
+  });
+
+  // Catch-all for unsupported routes or methods
+  app.use((req: Request, res: Response, next: NextFunction): void => {
+    if (req.method !== "POST") {
+      res.status(405).json({ message: "Method not allowed" });
+    } else {
+      res.status(404).json({ message: "Not found" });
+    }
+  });
+
+  // Start the server
+  app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
   });
 };

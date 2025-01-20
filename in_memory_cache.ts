@@ -27,7 +27,7 @@ class InMemoryCache {
   }
 
   public addPayloadFromXRPL(payloadHex: string) {
-    const buffer: Buffer<ArrayBufferLike> = Buffer.from(payloadHex, "hex");
+    const buffer: Buffer = Buffer.from(payloadHex, "hex");
 
     const payloadHash = createPayloadHash(buffer).toUpperCase();
 

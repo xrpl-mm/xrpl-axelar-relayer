@@ -1,9 +1,8 @@
-import abi from "npm:ethereumjs-abi";
-import { getBytes } from "npm:ethers";
-import { Client, Payment, Wallet, xrpToDrops } from "npm:xrpl";
+import abi from "ethereumjs-abi";
+import { getBytes } from "ethers";
+import { Client, Payment, Wallet, xrpToDrops } from "xrpl";
 import { RELAYER_CONFIG } from "./relayer_config.ts";
 import { Buffer } from "node:buffer";
-import "jsr:@std/dotenv/load";
 import { createPayloadHash } from "./utils.ts";
 
 async function canRelayMessageFromXRPLToEVM() {
@@ -13,7 +12,7 @@ async function canRelayMessageFromXRPLToEVM() {
   const AMOUNT = xrpToDrops("0.00125");
   const EVM_DESTINATION = `8E03c54DD97fa469d0a4f7a15cbc5dDD2Ee5E5C5`;
 
-  const payloadData: Buffer<ArrayBufferLike> = abi.rawEncode(
+  const payloadData: Buffer = abi.rawEncode(
     ["bytes", "string"],
     [getBytes("0x1212"), "asdfasdfswea"],
   );
@@ -21,7 +20,7 @@ async function canRelayMessageFromXRPLToEVM() {
   const payloadDataHex = payloadData.toString("hex");
 
   // Post to localhost:8001
-  const res = await fetch("http://localhost:8001/payload-from-xrpl", {
+  const res = await fetch("http://localhost:3000/payload-from-xrpl", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -54,7 +53,9 @@ async function canRelayMessageFromXRPLToEVM() {
       },
       {
         Memo: {
-          MemoData: Buffer.from(RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`chain_id`])
+          MemoData: Buffer.from(
+            RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+          )
             .toString("hex")
             .toUpperCase(),
           MemoType: Buffer.from("destination_chain")
@@ -81,6 +82,6 @@ async function canRelayMessageFromXRPLToEVM() {
   });
 
   console.log(`txResponse: ${JSON.stringify(txResponse, null, 2)}`);
-};
+}
 
-canRelayMessageFromXRPLToEVM()
+canRelayMessageFromXRPLToEVM();

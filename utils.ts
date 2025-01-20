@@ -1,6 +1,6 @@
-import { decodeAccountID, encodeAccountID } from "npm:xrpl";
-import { Buffer } from "node:buffer";
-import { keccak256 } from "npm:ethers";
+import { decodeAccountID, encodeAccountID } from "xrpl";
+import { Buffer } from "buffer";
+import { keccak256 } from "ethers";
 /**
  * Converts an XRPL account to an EVM address.
  * @param account The XRPL account to convert.

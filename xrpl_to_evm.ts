@@ -1,15 +1,14 @@
-import { Buffer } from "node:buffer";
-import { Contract, ethers, id } from "npm:ethers";
+import { Buffer } from "buffer";
+import { Contract, ethers, id } from "ethers";
 import { uint8ArrToHex, xrplAccountToEvmAddress } from "./utils.ts";
 import { RELAYER_CONFIG } from "./relayer_config.ts";
-import { execSync } from "node:child_process";
-import { dropsToXrp, SubscribeRequest, TransactionStream } from "npm:xrpl";
-import IAxelarExecutable from "./IAxelarExecutable.abi.json" with {
-  type: "json",
-};
+import { execSync } from "child_process";
+import { dropsToXrp, SubscribeRequest, TransactionStream } from "xrpl";
+import IAxelarExecutable from "./IAxelarExecutable.abi.json";
 import { EVM_SIDECHAIN_RELAYING_WALLET, getXrplProvider } from "./constants.ts";
 import { MessageFromXrpl, PaymentToXRPLGateway } from "./types.ts";
 import { inMemoryCache } from "./in_memory_cache.ts";
+import stringify from "safe-stable-stringify";
 
 type SerializedUserMessage = {
   tx_id: number[];
@@ -68,8 +67,12 @@ function isRouteITSMessageOutput(
   // deno-lint-ignore no-explicit-any
   output: any,
 ): output is RouteITSHubMessageOutput {
-  return output.txhash !== undefined && output.code !== undefined &&
-    typeof output.txhash === "string" && typeof output.code === "number";
+  return (
+    output.txhash !== undefined &&
+    output.code !== undefined &&
+    typeof output.txhash === "string" &&
+    typeof output.code === "number"
+  );
 }
 
 function isAxelarExecuteCommandOutput(
@@ -81,10 +84,13 @@ function isAxelarExecuteCommandOutput(
 
 // deno-lint-ignore no-explicit-any
 function isGetProofSuccessOutput(output: any): output is GetProofSuccessOutput {
-  return output.data !== undefined && output.data.status !== undefined &&
+  return (
+    output.data !== undefined &&
+    output.data.status !== undefined &&
     output.data.status.completed !== undefined &&
     output.data.status.completed.execute_data !== undefined &&
-    typeof output.data.status.completed.execute_data === "string";
+    typeof output.data.status.completed.execute_data === "string"
+  );
 }
 
 function unfurlEvent(event: LoggedEvent): UnfurledEvent {
@@ -175,7 +181,7 @@ const prepareVerifyMessages = (message: MessageFromXrpl) => {
     ],
   };
   return {
-    str: JSON.stringify(verifyMessages),
+    str: stringify(verifyMessages),
     user_message,
     payloadHex: message.payload,
   };
@@ -202,6 +208,7 @@ const verifyMessage = async (message: MessageFromXrpl) => {
       console.log("Executing command:", command);
       const output = execSync(command, {
         env: {
+          ...process.env,
           AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
         },
       }).toString();
@@ -249,11 +256,9 @@ const routeMessage = async ({
 
   const command = `axelard tx wasm execute ${
     RELAYER_CONFIG["chains"]["xrpl"]["axelarnet_gateway_address"]
-  } '${
-    JSON.stringify(
-      routeMessageCall,
-    )
-  }' --keyring-backend test --from wallet --keyring-dir ${
+  } '${stringify(
+    routeMessageCall,
+  )}' --keyring-backend test --from wallet --keyring-dir ${
     RELAYER_CONFIG["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
     RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -264,6 +269,7 @@ const routeMessage = async ({
       console.log("Executing command:", command);
       const output = execSync(command, {
         env: {
+          ...process.env,
           AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
         },
       }).toString();
@@ -300,14 +306,12 @@ const executeItsHubMessage = async ({
     tokenId: RELAYER_CONFIG[`token_ids`][`xrp`],
     sourceAddress: `0x${uint8ArrToHex(user_message.source_address)}`,
     destinationAddress: `0x${user_message.destination_address}`,
-    amount: ethers.parseUnits(
-      dropsToXrp(user_message.amount.drops).toString(),
-    ),
+    amount: ethers.parseUnits(dropsToXrp(user_message.amount.drops).toString()),
     data: `0x${payloadHex}`,
   };
 
   console.log({
-    interchainTransfer: JSON.stringify(interchainTransfer, null, 2),
+    interchainTransfer: stringify(interchainTransfer, null, 2),
   });
 
   const abiCoder = new ethers.AbiCoder();
@@ -346,7 +350,7 @@ const executeItsHubMessage = async ({
     },
   };
 
-  console.log({ contractCall: JSON.stringify(contractCall, null, 2) });
+  console.log({ contractCall: stringify(contractCall, null, 2) });
 
   let loggedEvent: LoggedEvent | null = null;
   while (true) {
@@ -354,17 +358,16 @@ const executeItsHubMessage = async ({
       const output = execSync(
         `axelard tx wasm execute ${
           RELAYER_CONFIG[`chains`][`axelarnet`][`axelarnet_gateway_address`]
-        } '${
-          JSON.stringify(
-            contractCall,
-          )
-        }' --keyring-backend test --from wallet --keyring-dir ${
+        } '${stringify(
+          contractCall,
+        )}' --keyring-backend test --from wallet --keyring-dir ${
           RELAYER_CONFIG["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
           RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
+            ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
         },
@@ -385,8 +388,8 @@ const executeItsHubMessage = async ({
             console.log(`Empty events after executing ITS Hub Message.`);
             continue;
           } else {
-            const contractCalledEvent = firstLog.events.find(({ type }) =>
-              type === "wasm-contract_called"
+            const contractCalledEvent = firstLog.events.find(
+              ({ type }) => type === "wasm-contract_called",
             )!;
 
             loggedEvent = contractCalledEvent;
@@ -409,7 +412,7 @@ const executeItsHubMessage = async ({
 
   const unfurled = unfurlEvent(loggedEvent!);
 
-  console.log({ unfurled: JSON.stringify(unfurled, null, 2) });
+  console.log({ unfurled: stringify(unfurled, null, 2) });
 
   return { user_message, payloadHex, messageId, loggedEvent: unfurled };
 };
@@ -429,9 +432,10 @@ const routeITSHubMessage = async ({
           message_id: messageId,
         },
         destination_chain: RELAYER_CONFIG[`chains`][`axelarnet`][`chain_id`],
-        destination_address: RELAYER_CONFIG[`chains`][`axelarnet`][
-          `axelarnet_interchain_token_service_address`
-        ],
+        destination_address:
+          RELAYER_CONFIG[`chains`][`axelarnet`][
+            `axelarnet_interchain_token_service_address`
+          ],
         source_address:
           RELAYER_CONFIG[`chains`][`xrpl`][`native_gateway_address`],
         payload_hash: payloadHash,
@@ -439,24 +443,23 @@ const routeITSHubMessage = async ({
     ],
   };
 
-  console.log({ routeMessages: JSON.stringify(routeMessages, null, 2) });
+  console.log({ routeMessages: stringify(routeMessages, null, 2) });
 
   while (true) {
     try {
       const output = execSync(
         `axelard tx wasm execute ${
           RELAYER_CONFIG[`chains`][`axelarnet`][`axelarnet_gateway_address`]
-        } '${
-          JSON.stringify(
-            routeMessages,
-          )
-        }' --keyring-backend test --from wallet --keyring-dir ${
+        } '${stringify(
+          routeMessages,
+        )}' --keyring-backend test --from wallet --keyring-dir ${
           RELAYER_CONFIG["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
           RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
+            ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
         },
@@ -474,16 +477,20 @@ const routeITSHubMessage = async ({
           break;
         } else {
           console.log(
-            `Error: ITS Hub message routing failed (code is not 0): ${
-              JSON.stringify(parsed, null, 2)
-            }`,
+            `Error: ITS Hub message routing failed (code is not 0): ${stringify(
+              parsed,
+              null,
+              2,
+            )}`,
           );
         }
       } else {
         console.log(
-          `Error: parsed output is not a RouteITSMessageOutput: ${
-            JSON.stringify(parsed, null, 2)
-          }`,
+          `Error: parsed output is not a RouteITSMessageOutput: ${stringify(
+            parsed,
+            null,
+            2,
+          )}`,
         );
       }
     } catch (e) {
@@ -497,11 +504,7 @@ const routeITSHubMessage = async ({
   }
 };
 
-const constructTransferProof = async ({
-  messageId,
-}: {
-  messageId: string;
-}) => {
+const constructTransferProof = async ({ messageId }: { messageId: string }) => {
   const constructProofCall = {
     construct_proof: [
       {
@@ -519,24 +522,23 @@ const constructTransferProof = async ({
           RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][
             `axelarnet_multisig_prover_address`
           ]
-        } '${
-          JSON.stringify(
-            constructProofCall,
-          )
-        }' --keyring-backend test --from wallet --keyring-dir ${
+        } '${stringify(
+          constructProofCall,
+        )}' --keyring-backend test --from wallet --keyring-dir ${
           RELAYER_CONFIG["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
           RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
+            ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
         },
       ).toString();
 
-      console.log({ output: JSON.stringify(output, null, 2) });
       const parsed = JSON.parse(output);
+      console.log({ output: stringify(parsed, null, 2) });
 
       if (
         output.includes("wasm-proof_under_construction") &&
@@ -551,8 +553,8 @@ const constructTransferProof = async ({
             console.log(`Empty events after executing ITS Hub Message.`);
             continue;
           } else {
-            const contractCalledEvent = firstLog.events.find(({ type }) =>
-              type === "wasm-proof_under_construction"
+            const contractCalledEvent = firstLog.events.find(
+              ({ type }) => type === "wasm-proof_under_construction",
             )!;
 
             loggedEvent = contractCalledEvent;
@@ -572,8 +574,8 @@ const constructTransferProof = async ({
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 
-  const multisigSessionIdAttribute = loggedEvent!.attributes.find(({ key }) =>
-    key === "multisig_session_id"
+  const multisigSessionIdAttribute = loggedEvent!.attributes.find(
+    ({ key }) => key === "multisig_session_id",
   );
 
   if (multisigSessionIdAttribute === undefined) {
@@ -608,23 +610,19 @@ const getProof = async ({
           RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][
             `axelarnet_multisig_prover_address`
           ]
-        } '${
-          JSON.stringify(
-            getProofCall,
-          )
-        }' --output json --node ${
+        } '${stringify(getProofCall)}' --output json --node ${
           RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
+            ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
         },
       ).toString();
 
-      console.log({ output: JSON.stringify(output, null, 2) });
-
       const parsed = JSON.parse(output);
+      console.log({ output: stringify(parsed, null, 2) });
 
       if (isGetProofSuccessOutput(parsed)) {
         console.log(
@@ -639,9 +637,7 @@ const getProof = async ({
       }
     } catch (e) {
       const error = e as Error;
-      console.log(
-        `Error: ${error.message}. Waiting for getProof call...`,
-      );
+      console.log(`Error: ${error.message}. Waiting for getProof call...`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -671,9 +667,8 @@ export const sendExecuteDataToGateway = async ({
     );
   }
 
-  console.log(
-    `Sent execute data to gateway: ${gatewayAddress}. Transaction hash: ${result.hash}`,
-  );
+  console.log(`Sent execute data to gateway: ${gatewayAddress}.`);
+  console.log(result.toJSON());
 };
 
 export const executeITSTransfer = async ({
@@ -790,12 +785,12 @@ const parseTx = (tx: TransactionStream) => {
     }
   }
 
-  const missingMemos = Object.entries(parsedMemo).filter(([, value]) =>
-    value === ""
+  const missingMemos = Object.entries(parsedMemo).filter(
+    ([, value]) => value === "",
   );
 
   if (missingMemos.length > 0) {
-    console.log(`Missing memos: ${JSON.stringify(missingMemos, null, 2)}`);
+    console.log(`Missing memos: ${stringify(missingMemos, null, 2)}`);
     return;
   }
 
@@ -806,15 +801,12 @@ const parseTx = (tx: TransactionStream) => {
   // @ts-ignore
   const txHash = tx.hash as string;
 
-  console.log(JSON.stringify(tx));
+  console.log(stringify(tx));
 
   // deno-lint-ignore ban-ts-comment
   // @ts-ignore
   const amount = tx.tx_json.DeliverMax as typeof tx.tx_json.Amount;
-  if (
-    typeof amount !== `string` &&
-    `mpt_issuance_id` in amount
-  ) {
+  if (typeof amount !== `string` && `mpt_issuance_id` in amount) {
     console.log(`MPTAmount is not supported`);
     return;
   }

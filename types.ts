@@ -1,4 +1,4 @@
-import { Amount } from "npm:xrpl";
+import { Amount } from "xrpl";
 
 export type RelayerConfig = {
   keyring_dir: string;
