@@ -806,14 +806,18 @@ const parseTx = (tx: TransactionStream) => {
   // @ts-ignore
   const txHash = tx.hash as string;
 
+  console.log(JSON.stringify(tx));
+
+  // deno-lint-ignore ban-ts-comment
+  // @ts-ignore
+  const amount = tx.tx_json.DeliverMax as typeof tx.tx_json.Amount;
   if (
-    typeof tx.tx_json.Amount !== `string` &&
-    `mpt_issuance_id` in tx.tx_json.Amount
+    typeof amount !== `string` &&
+    `mpt_issuance_id` in amount
   ) {
     console.log(`MPTAmount is not supported`);
     return;
   }
-  const amount = tx.tx_json.Amount;
 
   const paymentToXRPLGateway: PaymentToXRPLGateway = {
     tx_hash: txHash,
