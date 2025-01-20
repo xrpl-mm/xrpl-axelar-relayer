@@ -12,9 +12,11 @@ axelard keys add relayer --keyring-backend test --keyring-dir relayer-test.axela
 
 where `relayer-test.axelar` is your local directory that stores keyring.
 
-Then, fund the account that you just created on Axelarnet for it to pay for gas on relay.
+Fund the account that you just created on Axelarnet for it to pay for gas on relay.
 
-Next, adjust `relayer_config.ts` as needed. For example, you may want to change `RELAYER_CONFIG['keyring_dir']` if you have a different keyring dir.
+Adjust `relayer_config.ts` as needed. For example, you may want to change `RELAYER_CONFIG['keyring_dir']` if you have a different keyring dir.
+
+Add `.env` file by copying it from `.env.example`. Set up a funded EVM account on EVM sidechain and write the private key to `.env`.
 
 Finally, run:
 

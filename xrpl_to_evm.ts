@@ -709,9 +709,20 @@ export const executeITSTransfer = async ({
       gasLimit: RELAYER_CONFIG[`its_gas_limit`],
     },
   );
-  const result = await tx.wait();
+  const result: ethers.TransactionReceipt | null = await tx.wait();
+
+  if (!result) {
+    throw new Error(
+      `Failed to execute ITS transfer on interchain token service.`,
+    );
+  }
+
   console.log(
-    `Executed ITS transfer on interchain token service. Transaction hash: ${result.transactionHash}`,
+    `Executed ITS transfer on interchain token service. Transaction: ${stringify(
+      result.toJSON(),
+      null,
+      2,
+    )}`,
   );
 };
 
