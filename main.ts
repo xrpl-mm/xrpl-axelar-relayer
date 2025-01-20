@@ -1,8 +1,10 @@
-export function add(a: number, b: number): number {
-  return a + b;
+import { server } from "./server.ts";
+import { relayXrplToEvm } from "./xrpl_to_evm.ts";
+
+export async function main() {
+  Deno.serve({ port: 8001 }, server);
+
+  return await relayXrplToEvm();
 }
 
-// Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
-if (import.meta.main) {
-  console.log("Add 2 + 3 =", add(2, 3));
-}
+main();
