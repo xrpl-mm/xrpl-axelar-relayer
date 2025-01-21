@@ -1,5 +1,7 @@
 # xrpl-axelar-relayer
 
+This is a POC relayer that relays messages from XRPL to EVM and vice versa.
+
 ## Installation
 
 First, install [axelard](https://github.com/axelarnetwork/axelar-core).
