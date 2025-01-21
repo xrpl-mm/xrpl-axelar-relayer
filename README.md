@@ -23,3 +23,7 @@ Finally, run:
 ```bash
 npm run start
 ```
+
+## Address for testing
+
+https://explorer.xrplevm.org/address/0xb99a45be2e2dcc55a8e25d5ad0eed7ffb45af88e

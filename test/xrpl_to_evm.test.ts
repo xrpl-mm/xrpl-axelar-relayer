@@ -1,11 +1,11 @@
 import abi from "ethereumjs-abi";
 import { getBytes } from "ethers";
 import { Client, Payment, Wallet, xrpToDrops } from "xrpl";
-import { RELAYER_CONFIG } from "./relayer_config.ts";
+import { RELAYER_CONFIG } from "../relayer_config.ts";
 import { Buffer } from "node:buffer";
-import { createPayloadHash } from "./utils.ts";
+import { createPayloadHash } from "../utils.ts";
 
-async function canRelayMessageFromXRPLToEVM() {
+async function sendMessageFromXRPLtoEVM() {
   // Can always get a new one from https://xrpl.org/resources/dev-tools/xrp-faucets
   const SECRET = `sEd7bNqUNqBF1Mh3Vs1hgbk5hr7Ciis`;
   const xrplWallet = Wallet.fromSeed(SECRET);
@@ -84,4 +84,4 @@ async function canRelayMessageFromXRPLToEVM() {
   console.log(`txResponse: ${JSON.stringify(txResponse, null, 2)}`);
 }
 
-canRelayMessageFromXRPLToEVM();
+sendMessageFromXRPLtoEVM();
