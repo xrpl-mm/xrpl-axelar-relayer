@@ -15,6 +15,7 @@ const with0xEvmSidechainPrivateKey = prepend0x(EVM_SIDECHAIN_PRIVATE_KEY);
 
 export const RELAYER_CONFIG: RelayerConfig = {
   keyring_dir: "/Users/jm/Documents/Code/xrpl-mm/xrpl-axelar-relayer/.axelar",
+  wallet_name: `wallet`,
   its_gas_limit: 8000000,
   token_ids: {
     xrp: "0xc2bb311dd03a93be4b74d3b4ab8612241c4dd1fd0232467c54a03b064f8583b6",

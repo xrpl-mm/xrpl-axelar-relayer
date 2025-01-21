@@ -89,7 +89,9 @@ const verifyMessage = async (message: MessageFromXrpl) => {
 
   const command = `axelard tx wasm execute ${
     RELAYER_CONFIG["chains"]["xrpl"]["axelarnet_gateway_address"]
-  } '${verifyMessagesJson}' --keyring-backend test --from wallet --keyring-dir ${
+  } '${verifyMessagesJson}' --keyring-backend test --from ${
+    RELAYER_CONFIG[`wallet_name`]
+  } --keyring-dir ${
     RELAYER_CONFIG["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
     RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -148,9 +150,9 @@ const routeMessage = async ({
 
   const command = `axelard tx wasm execute ${
     RELAYER_CONFIG["chains"]["xrpl"]["axelarnet_gateway_address"]
-  } '${stringify(
-    routeMessageCall,
-  )}' --keyring-backend test --from wallet --keyring-dir ${
+  } '${stringify(routeMessageCall)}' --keyring-backend test --from ${
+    RELAYER_CONFIG[`wallet_name`]
+  } --keyring-dir ${
     RELAYER_CONFIG["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
     RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -250,9 +252,9 @@ const executeItsHubMessage = async ({
       const output = execSync(
         `axelard tx wasm execute ${
           RELAYER_CONFIG[`chains`][`axelarnet`][`axelarnet_gateway_address`]
-        } '${stringify(
-          contractCall,
-        )}' --keyring-backend test --from wallet --keyring-dir ${
+        } '${stringify(contractCall)}' --keyring-backend test --from ${
+          RELAYER_CONFIG[`wallet_name`]
+        } --keyring-dir ${
           RELAYER_CONFIG["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
           RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -342,9 +344,9 @@ const routeITSHubMessage = async ({
       const output = execSync(
         `axelard tx wasm execute ${
           RELAYER_CONFIG[`chains`][`axelarnet`][`axelarnet_gateway_address`]
-        } '${stringify(
-          routeMessages,
-        )}' --keyring-backend test --from wallet --keyring-dir ${
+        } '${stringify(routeMessages)}' --keyring-backend test --from ${
+          RELAYER_CONFIG[`wallet_name`]
+        } --keyring-dir ${
           RELAYER_CONFIG["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
           RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -414,9 +416,9 @@ const constructTransferProof = async ({ messageId }: { messageId: string }) => {
           RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][
             `axelarnet_multisig_prover_address`
           ]
-        } '${stringify(
-          constructProofCall,
-        )}' --keyring-backend test --from wallet --keyring-dir ${
+        } '${stringify(constructProofCall)}' --keyring-backend test --from ${
+          RELAYER_CONFIG[`wallet_name`]
+        } --keyring-dir ${
           RELAYER_CONFIG["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
           RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]

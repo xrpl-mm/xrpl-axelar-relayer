@@ -75,6 +75,6 @@ async function sendMessageFromEVMToXRPL(amount: bigint) {
 
 // XRP is 18 decimals on EVM sidechain
 sendMessageFromEVMToXRPL(
-  // 0.1 XRP
-  100000000000000000n,
+  // 0.12 XRP (be careful not to send a lot, not to waste the token balance)
+  120000000000000000n,
 );

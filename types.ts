@@ -2,6 +2,7 @@ import { Amount } from "xrpl";
 
 export type RelayerConfig = {
   keyring_dir: string;
+  wallet_name: string;
   its_gas_limit: number;
   token_ids: {
     xrp: string;

@@ -90,6 +90,32 @@ async function handleContractCallEvent(
 
   const { txBlob } = await getProof({ multisigSessionId });
   const submitResponse = await submitTransactionBlob(txBlob);
+
+  if (!submitResponse.result.accepted) {
+    console.log(`XRPL tx not accepted: ${submitResponse.result.engine_result}`);
+    console.log(stringify(submitResponse, null, 2));
+
+    return
+  }
+
+  await verifyProverMessage({
+    xrplTxHash: submitResponse.result.tx_json.hash!,
+  });
+  await confirmTxStatus({
+    multisigSessionId,
+    signedTxHash: submitResponse.result.tx_json.hash!,
+    // "Signers": [
+    //   {
+    //     "Signer": {
+    //       "Account": "r4LDyA6WoyzJ6ZhQ5NWU4AG1aApBwbSSk6",
+    //       "SigningPubKey": "030543653008B6A4EB09B34231BC1B800422053AA558E4088B141CFB632AF40AD6",
+    //       "TxnSignature": "3045022100F8597ED8DD62B11FB0CF76DCF6A944AB88805C89C267915F802F7E3E6AE52B3A02201AF179D75FC3E4AB7B69C47D9F3C56618ED3D94FFF2CD6EEDE105325A859E40F"
+    //     }
+    //   }
+    // ],
+    signerPublicKey:
+      submitResponse.result.tx_json.Signers![0].Signer.SigningPubKey,
+  });
 }
 
 async function verifyMessage({
@@ -124,7 +150,9 @@ async function verifyMessage({
         payload_hash: payloadHash,
       })}
     ]
-  }' --keyring-backend test --from wallet --keyring-dir ${
+  }' --keyring-backend test --from ${
+    RELAYER_CONFIG[`wallet_name`]
+  } --keyring-dir ${
     RELAYER_CONFIG["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
     RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -206,9 +234,9 @@ async function routeMessage({
   // }' "${ARGS[@]}"
   const command = `axelard tx wasm execute ${
     RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`axelarnet_gateway_address`]
-  } '${stringify(
-    routeMessageCall,
-  )}' --keyring-backend test --from wallet --keyring-dir ${
+  } '${stringify(routeMessageCall)}' --keyring-backend test --from ${
+    RELAYER_CONFIG[`wallet_name`]
+  } --keyring-dir ${
     RELAYER_CONFIG["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
     RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -284,9 +312,9 @@ async function executeITSHubMessage({
 
   const command = `axelard tx wasm execute ${
     RELAYER_CONFIG[`chains`][`axelarnet`][`axelarnet_gateway_address`]
-  } '${stringify(
-    executeCall,
-  )}' --keyring-backend test --from wallet --keyring-dir ${
+  } '${stringify(executeCall)}' --keyring-backend test --from ${
+    RELAYER_CONFIG[`wallet_name`]
+  } --keyring-dir ${
     RELAYER_CONFIG["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
     RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -367,9 +395,9 @@ async function constructTransferProof({
   };
   const command = `axelard tx wasm execute ${
     RELAYER_CONFIG[`chains`][`xrpl`][`axelarnet_multisig_prover_address`]
-  } '${stringify(
-    constructProofCall,
-  )}' --keyring-backend test --from wallet --keyring-dir ${
+  } '${stringify(constructProofCall)}' --keyring-backend test --from ${
+    RELAYER_CONFIG[`wallet_name`]
+  } --keyring-dir ${
     RELAYER_CONFIG["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
     RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
@@ -499,13 +527,105 @@ async function submitTransactionBlob(txBlob: string): Promise<SubmitResponse> {
   const client = await getXrplProvider();
   const response = await client.request(request);
 
-  console.log(stringify(response, null, 2));
-
   console.log(
     `https://devnet.xrpl.org/transactions/${response.result.tx_json.hash}`,
   );
 
   return response;
+}
+
+// axelard tx wasm execute $XRPL_GATEWAY '{"verify_messages":[{"prover_message":"7FFD99C31E7FFAE2835208B9EE0617C15B357776C97EE2E16268A86E7002C478"}]}' "${ARGS[@]}"
+async function verifyProverMessage({ xrplTxHash }: { xrplTxHash: string }) {
+  const verifyMessageCall = {
+    verify_messages: [
+      {
+        prover_message: xrplTxHash,
+      },
+    ],
+  };
+  const command = `axelard tx wasm execute ${
+    RELAYER_CONFIG[`chains`][`xrpl`][`axelarnet_gateway_address`]
+  } '${stringify(verifyMessageCall)}' --keyring-backend test --from ${
+    RELAYER_CONFIG[`wallet_name`]
+  } --keyring-dir ${
+    RELAYER_CONFIG["keyring_dir"]
+  } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
+    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+  }`;
+
+  while (true) {
+    try {
+      const output = execSync(command, {
+        env: {
+          ...process.env,
+          AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
+        },
+      }).toString();
+
+      const parsed = JSON.parse(output);
+      console.log({ output: stringify(parsed, null, 2) });
+
+      // TODO: resolve the promise when the prover message is verified
+    } catch (e) {
+      const error = e as Error;
+      console.log(
+        `Error: ${error.message}. Waiting for prover message to be verified...`,
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+}
+// axelard tx wasm execute $XRPL_MULTISIG_PROVER '{"confirm_tx_status":{"multisig_session_id":"84","signed_tx_hash":"7FFD99C31E7FFAE2835208B9EE0617C15B357776C97EE2E16268A86E7002C478","signer_public_keys":[{"ecdsa":"0226BB43B7E6A6EBD4A07C852BB2F054B32A53286F4465FF1CF9C0D56EFB1FE113"}]}}' "${ARGS[@]}"
+async function confirmTxStatus({
+  multisigSessionId,
+  signedTxHash,
+  signerPublicKey,
+}: {
+  multisigSessionId: string;
+  signedTxHash: string;
+  signerPublicKey: string;
+}) {
+  const confirmTxStatusCall = {
+    confirm_tx_status: {
+      multisig_session_id: multisigSessionId,
+      signed_tx_hash: signedTxHash,
+      signer_public_keys: [{ ecdsa: signerPublicKey }],
+    },
+  };
+
+  const command = `axelard tx wasm execute ${
+    RELAYER_CONFIG[`chains`][`xrpl`][`axelarnet_multisig_prover_address`]
+  } '${stringify(confirmTxStatusCall)}' --keyring-backend test --from ${
+    RELAYER_CONFIG[`wallet_name`]
+  } --keyring-dir ${
+    RELAYER_CONFIG["keyring_dir"]
+  } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
+    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+  }`;
+
+  while (true) {
+    try {
+      const output = execSync(command, {
+        env: {
+          ...process.env,
+          AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
+        },
+      }).toString();
+
+      const parsed = JSON.parse(output);
+      console.log({ output: stringify(parsed, null, 2) });
+
+      // TODO: resolve the promise when the transaction is confirmed
+    } catch (e) {
+      const error = e as Error;
+      console.log(
+        `Error: ${error.message}. Waiting for transaction status to be confirmed...`,
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
 }
 
 const listenToEventsOnNewBlock = async () => {
