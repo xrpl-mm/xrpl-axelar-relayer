@@ -24,6 +24,17 @@ Finally, run:
 npm run start
 ```
 
-## Address for testing
+## Testing
 
-https://explorer.xrplevm.org/address/0xb99a45be2e2dcc55a8e25d5ad0eed7ffb45af88e
+Test EVM to XRPL token transfer with payload:
+
+```bash
+npx ts-node ./test/evm_to_xrpl.test.ts
+```
+
+Test XRPL to EVM token transfer:
+
+```bash
+npx ts-node ./test/xrpl_to_evm.test.ts
+```
+
