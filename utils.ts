@@ -1,6 +1,7 @@
 import { decodeAccountID, encodeAccountID } from "xrpl";
 import { Buffer } from "buffer";
 import { keccak256 } from "ethers";
+import { LoggedEvent, UnfurledEvent } from "./types";
 /**
  * Converts an XRPL account to an EVM address.
  * @param account The XRPL account to convert.
@@ -35,4 +36,51 @@ export const remove0x = (hex: string): string => {
 
 export function createPayloadHash(payload: Buffer): string {
   return keccak256(payload).slice(2);
+}
+
+export function unfurlEvent(event: LoggedEvent): UnfurledEvent {
+  const unfurled: UnfurledEvent = {
+    sourceChain: "",
+    sourceAddress: "",
+    messageId: "",
+    payload: "",
+    payloadHash: "",
+    destinationChain: "",
+    destinationAddress: "",
+  };
+
+  for (const attr of event.attributes) {
+    switch (attr.key) {
+      case "destination_address":
+        unfurled.destinationAddress = attr.value;
+        break;
+      case "destination_chain":
+        unfurled.destinationChain = attr.value;
+        break;
+      case "message_id":
+        unfurled.messageId = attr.value;
+        break;
+      case "payload":
+        unfurled.payload = attr.value;
+        break;
+      case "payload_hash":
+        unfurled.payloadHash = attr.value;
+        break;
+      case "source_address":
+        unfurled.sourceAddress = attr.value;
+        break;
+      case "source_chain":
+        unfurled.sourceChain = attr.value;
+        break;
+    }
+  }
+
+  // Check if any of the fields are empty
+  for (const [key, value] of Object.entries(unfurled)) {
+    if (value === "") {
+      throw new Error(`Unfurled event is missing field: ${key}`);
+    }
+  }
+
+  return unfurled;
 }

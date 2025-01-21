@@ -43,6 +43,7 @@ export const RELAYER_CONFIG: RelayerConfig = {
       },
       axelarnet_gateway_address:
         "axelar13w698a6pjytxj6jzprs6pznaxhan3flhf76fr0nc7jg3udcsa07q9c7da3",
+      axelarnet_multisig_prover_address: `axelar1upqj9paf2qhhp49fjtk4ghwnv2mzcqnpglggr0hds8dy9a4stz2st0ewsh`,
       native_gateway_address: "rP9iHnCmJcVPtzCwYJjU1fryC2pEcVqDHv",
     },
     axelarnet: {

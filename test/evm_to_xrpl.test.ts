@@ -1,10 +1,21 @@
 import { ethers } from "ethers";
 import { EVM_SIDECHAIN_RELAYING_WALLET } from "../constants";
 import { RELAYER_CONFIG } from "../relayer_config";
+import { xrplAccountToEvmAddress } from "../utils";
+
+// Address
+// rEjrYCKjc3yR4qokX1Yy4y4EPj924UndeC
+// Secret
+// sEdTHrLSHKeYVr6PsMB8a1WzWpHqRgQ
+const XRPLDestination = xrplAccountToEvmAddress(
+  `rEjrYCKjc3yR4qokX1Yy4y4EPj924UndeC`,
+);
+
+console.log(`XRPL Destination: ${XRPLDestination}`);
 
 const testingEnv = {
   testingContractAddress: `0x60766991c4900a88974aa59e18d4029452415c13`,
-  destinationAddress: `0x928846BAF59BD48C28B131855472D04C93BBD0B7`,
+  destinationAddress: XRPLDestination,
 };
 
 async function sendMessageFromEVMToXRPL(amount: bigint) {
@@ -62,4 +73,8 @@ async function sendMessageFromEVMToXRPL(amount: bigint) {
   console.log(`Sent token: ${sendResult.hash}`);
 }
 
-sendMessageFromEVMToXRPL(10000000568n);
+// XRP is 18 decimals on EVM sidechain
+sendMessageFromEVMToXRPL(
+  // 0.1 XRP
+  100000000000000000n,
+);

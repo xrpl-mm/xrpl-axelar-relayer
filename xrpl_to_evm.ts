@@ -1,13 +1,20 @@
 import { Buffer } from "buffer";
 import { Contract, ethers, id } from "ethers";
-import { uint8ArrToHex, xrplAccountToEvmAddress } from "./utils.ts";
+import {
+  uint8ArrToHex,
+  unfurlEvent,
+  xrplAccountToEvmAddress,
+} from "./utils.ts";
 import { RELAYER_CONFIG } from "./relayer_config.ts";
 import { execSync } from "child_process";
 import { dropsToXrp, SubscribeRequest, TransactionStream } from "xrpl";
 import IAxelarExecutable from "./IAxelarExecutable.abi.json";
 import { EVM_SIDECHAIN_RELAYING_WALLET, getXrplProvider } from "./constants.ts";
 import {
+  isAxelarExecuteCommandOutput,
+  isGetProofSuccessOutputForRelayToEVM,
   isRouteITSMessageOutput,
+  LoggedEvent,
   MessageFromXrpl,
   PaymentToXRPLGateway,
 } from "./types.ts";
@@ -24,108 +31,6 @@ type SerializedUserMessage = {
   };
   payload_hash: string;
 };
-
-type EventAttribute = {
-  key: string;
-  value: string;
-};
-
-type LoggedEvent = {
-  type: string;
-  attributes: Array<EventAttribute>;
-};
-
-type UnfurledEvent = {
-  sourceChain: string;
-  sourceAddress: string;
-  messageId: string;
-  payload: string;
-  payloadHash: string;
-  destinationChain: string;
-  destinationAddress: string;
-};
-
-type AxelarExecuteCommandOutput = {
-  logs: {
-    events: Array<LoggedEvent>;
-  }[];
-};
-
-type GetProofSuccessOutput = {
-  data: {
-    status: {
-      completed: {
-        // hex string without preceding 0x
-        execute_data: string;
-      };
-    };
-  };
-};
-
-function isAxelarExecuteCommandOutput(
-  // deno-lint-ignore no-explicit-any
-  output: any,
-): output is AxelarExecuteCommandOutput {
-  return output.logs !== undefined && Array.isArray(output.logs);
-}
-
-// deno-lint-ignore no-explicit-any
-function isGetProofSuccessOutput(output: any): output is GetProofSuccessOutput {
-  return (
-    output.data !== undefined &&
-    output.data.status !== undefined &&
-    output.data.status.completed !== undefined &&
-    output.data.status.completed.execute_data !== undefined &&
-    typeof output.data.status.completed.execute_data === "string"
-  );
-}
-
-function unfurlEvent(event: LoggedEvent): UnfurledEvent {
-  const unfurled: UnfurledEvent = {
-    sourceChain: "",
-    sourceAddress: "",
-    messageId: "",
-    payload: "",
-    payloadHash: "",
-    destinationChain: "",
-    destinationAddress: "",
-  };
-
-  for (const attr of event.attributes) {
-    switch (attr.key) {
-      case "destination_address":
-        unfurled.destinationAddress = attr.value;
-        break;
-      case "destination_chain":
-        unfurled.destinationChain = attr.value;
-        break;
-      case "message_id":
-        unfurled.messageId = attr.value;
-        break;
-      case "payload":
-        unfurled.payload = attr.value;
-        break;
-      case "payload_hash":
-        unfurled.payloadHash = attr.value;
-        break;
-      case "source_address":
-        unfurled.sourceAddress = attr.value;
-        break;
-      case "source_chain":
-        unfurled.sourceChain = attr.value;
-        break;
-    }
-  }
-
-  // Check if any of the fields are empty
-  for (const [key, value] of Object.entries(unfurled)) {
-    if (value === "") {
-      throw new Error(`Unfurled event is missing field: ${key}`);
-    }
-  }
-
-  return unfurled;
-}
 
 const startSubscribeToXrplGateway = async (): Promise<void> => {
   const xrplProvider = await getXrplProvider();
@@ -611,7 +516,7 @@ const getProof = async ({
       const parsed = JSON.parse(output);
       console.log({ output: stringify(parsed, null, 2) });
 
-      if (isGetProofSuccessOutput(parsed)) {
+      if (isGetProofSuccessOutputForRelayToEVM(parsed)) {
         console.log(
           `Proof constructed. Execute data: ${parsed.data.status.completed.execute_data}`,
         );
