@@ -31,6 +31,7 @@ export const RELAYER_CONFIG: RelayerConfig = {
         "0x43F2ccD4E27099b5F580895b44eAcC866e5F7Bb1",
       axelarnet_multisig_prover_address:
         "axelar19pu8hfnwgc0vjhadmvmgz3w4d2g7d7qlg6jjky9y2mf8ea4vf4usj6ramg",
+      axelarnet_gateway_address: `axelar1cvc5u0z9fm6n5gcur3xqz4gmxj4j96vr6j5a099ygjedfpcmh5zqepykg4`,
       token_contracts: {
         xrp: `0xD4949664cD82660AaE99bEdc034a0deA8A0bd517`,
       },

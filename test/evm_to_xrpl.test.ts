@@ -21,6 +21,9 @@ async function sendMessageFromEVMToXRPL(amount: bigint) {
     amount,
   );
 
+  // wait for tx hash
+  await approveResult.wait();
+
   console.log(`Approved: ${approveResult.hash}`);
 
   // Send

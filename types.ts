@@ -16,6 +16,7 @@ export type RelayerConfig = {
       native_gateway_address: string;
       native_interchain_token_service_address: string;
       axelarnet_multisig_prover_address: string;
+      axelarnet_gateway_address: string;
       token_contracts: {
         xrp: string;
       };
