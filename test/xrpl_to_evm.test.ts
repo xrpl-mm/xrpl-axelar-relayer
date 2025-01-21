@@ -3,7 +3,7 @@ import { getBytes } from "ethers";
 import { Client, Payment, Wallet, xrpToDrops } from "xrpl";
 import { RELAYER_CONFIG } from "../relayer_config.ts";
 import { Buffer } from "node:buffer";
-import { createPayloadHash } from "../utils.ts";
+import { createPayloadHash } from "../src/utils.ts";
 
 async function sendMessageFromXRPLtoEVM() {
   // Can always get a new one from https://xrpl.org/resources/dev-tools/xrp-faucets

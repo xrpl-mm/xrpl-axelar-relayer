@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { RELAYER_CONFIG } from "./relayer_config";
+import { RELAYER_CONFIG } from "../relayer_config";
 import IAxelarGateway from "./IAxelarGateway.abi.json";
 import { remove0x, unfurlEvent } from "./utils";
 import { execSync } from "child_process";

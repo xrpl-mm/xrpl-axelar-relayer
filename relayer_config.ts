@@ -1,5 +1,5 @@
-import { RelayerConfig } from "./types.ts";
-import { prepend0x } from "./utils.ts";
+import { RelayerConfig } from "./src/types.ts";
+import { prepend0x } from "./src/utils.ts";
 import dotenv from "dotenv";
 
 dotenv.config();

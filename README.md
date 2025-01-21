@@ -29,11 +29,11 @@ npm run start
 Test EVM to XRPL token transfer with payload:
 
 ```bash
-npx ts-node ./test/evm_to_xrpl.test.ts
+npm run to-xrpl
 ```
 
 Test XRPL to EVM token transfer:
 
 ```bash
-npx ts-node ./test/xrpl_to_evm.test.ts
+npm run to-evm
 ```

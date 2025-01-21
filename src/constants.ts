@@ -1,5 +1,5 @@
 import { JsonRpcProvider, Wallet } from "ethers";
-import { RELAYER_CONFIG } from "./relayer_config.ts";
+import { RELAYER_CONFIG } from "../relayer_config.ts";
 import { Client } from "xrpl";
 
 export const EVM_SIDECHAIN_PROVIDER = new JsonRpcProvider(

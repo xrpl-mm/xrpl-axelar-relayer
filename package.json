@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npx ts-node main.ts",
-    "relay": "npx ts-node main.relay.ts"
+    "start": "npx ts-node src/main.ts",
+    "to-xrpl": "npx ts-node ./test/evm_to_xrpl.test.ts",
+    "to-evm": "npx ts-node ./test/xrpl_to_evm.test.ts"
   },
   "keywords": [],
   "author": "9oelM",

@@ -5,7 +5,7 @@ import {
   unfurlEvent,
   xrplAccountToEvmAddress,
 } from "./utils.ts";
-import { RELAYER_CONFIG } from "./relayer_config.ts";
+import { RELAYER_CONFIG } from "../relayer_config.ts";
 import { execSync } from "child_process";
 import { dropsToXrp, SubscribeRequest, TransactionStream } from "xrpl";
 import IAxelarExecutable from "./IAxelarExecutable.abi.json";

@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
-import { EVM_SIDECHAIN_RELAYING_WALLET } from "../constants";
+import { EVM_SIDECHAIN_RELAYING_WALLET } from "../src/constants";
 import { RELAYER_CONFIG } from "../relayer_config";
-import { xrplAccountToEvmAddress } from "../utils";
+import { xrplAccountToEvmAddress } from "../src/utils";
 
 // Address
 // rEjrYCKjc3yR4qokX1Yy4y4EPj924UndeC
