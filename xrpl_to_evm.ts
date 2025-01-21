@@ -6,7 +6,11 @@ import { execSync } from "child_process";
 import { dropsToXrp, SubscribeRequest, TransactionStream } from "xrpl";
 import IAxelarExecutable from "./IAxelarExecutable.abi.json";
 import { EVM_SIDECHAIN_RELAYING_WALLET, getXrplProvider } from "./constants.ts";
-import { MessageFromXrpl, PaymentToXRPLGateway } from "./types.ts";
+import {
+  isRouteITSMessageOutput,
+  MessageFromXrpl,
+  PaymentToXRPLGateway,
+} from "./types.ts";
 import { inMemoryCache } from "./in_memory_cache.ts";
 import stringify from "safe-stable-stringify";
 
@@ -19,11 +23,6 @@ type SerializedUserMessage = {
     drops: number;
   };
   payload_hash: string;
-};
-
-type RouteITSHubMessageOutput = {
-  txhash: string;
-  code: 0 | number;
 };
 
 type EventAttribute = {
@@ -62,18 +61,6 @@ type GetProofSuccessOutput = {
     };
   };
 };
-
-function isRouteITSMessageOutput(
-  // deno-lint-ignore no-explicit-any
-  output: any,
-): output is RouteITSHubMessageOutput {
-  return (
-    output.txhash !== undefined &&
-    output.code !== undefined &&
-    typeof output.txhash === "string" &&
-    typeof output.code === "number"
-  );
-}
 
 function isAxelarExecuteCommandOutput(
   // deno-lint-ignore no-explicit-any

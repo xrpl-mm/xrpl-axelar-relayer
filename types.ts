@@ -60,3 +60,20 @@ export type POSTPayloadRequest = {
 export function isPOSTPayloadRequest(obj: any): obj is POSTPayloadRequest {
   return obj.payload !== undefined;
 }
+
+export type RouteITSHubMessageOutput = {
+  txhash: string;
+  code: 0 | number;
+};
+
+export function isRouteITSMessageOutput(
+  // deno-lint-ignore no-explicit-any
+  output: any,
+): output is RouteITSHubMessageOutput {
+  return (
+    output.txhash !== undefined &&
+    output.code !== undefined &&
+    typeof output.txhash === "string" &&
+    typeof output.code === "number"
+  );
+}

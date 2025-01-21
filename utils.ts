@@ -31,7 +31,7 @@ export const prepend0x = (hex: string): string => {
 
 export const remove0x = (hex: string): string => {
   return hex.startsWith("0x") ? hex.slice(2) : hex;
-}
+};
 
 export function createPayloadHash(payload: Buffer): string {
   return keccak256(payload).slice(2);
