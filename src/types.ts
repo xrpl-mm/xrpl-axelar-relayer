@@ -1,4 +1,5 @@
 import { Amount } from "xrpl";
+import { AugmentedRelayerConfig } from "./relayer_config";
 
 export type RelayerConfig = {
   keyring_dir: string;
@@ -6,6 +7,7 @@ export type RelayerConfig = {
   its_gas_limit: number;
   token_ids: {
     xrp: string;
+    eth: string;
   };
   chains: {
     "xrpl-evm-sidechain": {
@@ -13,13 +15,13 @@ export type RelayerConfig = {
       rpc: {
         http: string;
       };
-      native_relaying_wallet_private_key: string;
       native_gateway_address: string;
       native_interchain_token_service_address: string;
       axelarnet_multisig_prover_address: string;
       axelarnet_gateway_address: string;
       token_contracts: {
         xrp: string;
+        eth: string;
       };
     };
     xrpl: {
@@ -156,3 +158,7 @@ export function isGetProofSuccessOutputForRelayToXRPL(
     typeof output.data.tx_blob === "string"
   );
 }
+
+export type WithRelayerConfig<T = {}> = {
+  relayerConfig: AugmentedRelayerConfig;
+} & T;

@@ -23,7 +23,8 @@ Add `.env` file by copying it from `.env.example`. Set up a funded EVM account o
 Finally, run:
 
 ```bash
-npm run start
+# or use any other config.json file that conforms to the schema defined in src/relayer_config.ts
+npm start -- relayer_config.json
 ```
 
 ## Testing
@@ -31,11 +32,11 @@ npm run start
 Test EVM to XRPL token transfer with payload:
 
 ```bash
-npm run to-xrpl
+npm run to-xrpl -- relayer_config.json
 ```
 
 Test XRPL to EVM token transfer:
 
 ```bash
-npm run to-evm
+npm run to-evm -- relayer_config.json
 ```

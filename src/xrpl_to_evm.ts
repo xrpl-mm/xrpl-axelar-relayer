@@ -5,11 +5,9 @@ import {
   unfurlEvent,
   xrplAccountToEvmAddress,
 } from "./utils.ts";
-import { RELAYER_CONFIG } from "../relayer_config.ts";
 import { execSync } from "child_process";
 import { dropsToXrp, SubscribeRequest, TransactionStream } from "xrpl";
 import IAxelarExecutable from "./IAxelarExecutable.abi.json";
-import { EVM_SIDECHAIN_RELAYING_WALLET, getXrplProvider } from "./constants.ts";
 import {
   isAxelarExecuteCommandOutput,
   isGetProofSuccessOutputForRelayToEVM,
@@ -17,6 +15,7 @@ import {
   LoggedEvent,
   MessageFromXrpl,
   PaymentToXRPLGateway,
+  WithRelayerConfig,
 } from "./types.ts";
 import { inMemoryCache } from "./in_memory_cache.ts";
 import stringify from "safe-stable-stringify";
@@ -32,12 +31,16 @@ type SerializedUserMessage = {
   payload_hash: string;
 };
 
-const startSubscribeToXrplGateway = async (): Promise<void> => {
-  const xrplProvider = await getXrplProvider();
+const startSubscribeToXrplGateway = async ({
+  relayerConfig,
+}: WithRelayerConfig): Promise<void> => {
+  const xrplProvider = await relayerConfig.getXrplProvider();
   const subscribeRequest: SubscribeRequest = {
     id: `subscribe-to-xrpl-gateway`,
     command: "subscribe",
-    accounts: [RELAYER_CONFIG[`chains`][`xrpl`][`native_gateway_address`]],
+    accounts: [
+      relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`],
+    ],
   };
   const subscribeResponse = await xrplProvider.request(subscribeRequest);
   if (subscribeResponse.id === "subscribe-to-xrpl-gateway") {
@@ -48,7 +51,12 @@ const startSubscribeToXrplGateway = async (): Promise<void> => {
 };
 
 // Prepare the verify_messages JSON
-const prepareVerifyMessages = (message: MessageFromXrpl) => {
+const prepareVerifyMessages = ({
+  relayerConfig,
+  message,
+}: WithRelayerConfig<{
+  message: MessageFromXrpl;
+}>) => {
   const tx_id = Array.from(new Uint8Array(Buffer.from(message.tx_hash, "hex")));
   const sourceAddressHex = xrplAccountToEvmAddress(
     message.source_address,
@@ -60,7 +68,7 @@ const prepareVerifyMessages = (message: MessageFromXrpl) => {
     tx_id: tx_id,
     source_address: source_address,
     destination_chain:
-      RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+      relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
     destination_address: message.destination_address,
     amount: { drops: Number(message.amount) },
     payload_hash: message.payload_hash,
@@ -80,21 +88,26 @@ const prepareVerifyMessages = (message: MessageFromXrpl) => {
 };
 
 // Execute axelard command
-const verifyMessage = async (message: MessageFromXrpl) => {
+const verifyMessage = async ({
+  relayerConfig,
+  message,
+}: WithRelayerConfig<{
+  message: MessageFromXrpl;
+}>) => {
   const {
     str: verifyMessagesJson,
     user_message,
     payloadHex,
-  } = prepareVerifyMessages(message);
+  } = prepareVerifyMessages({ relayerConfig, message });
 
   const command = `axelard tx wasm execute ${
-    RELAYER_CONFIG["chains"]["xrpl"]["axelarnet_gateway_address"]
+    relayerConfig.config["chains"]["xrpl"]["axelarnet_gateway_address"]
   } '${verifyMessagesJson}' --keyring-backend test --from ${
-    RELAYER_CONFIG[`wallet_name`]
+    relayerConfig.config[`wallet_name`]
   } --keyring-dir ${
-    RELAYER_CONFIG["keyring_dir"]
+    relayerConfig.config["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+    relayerConfig.config["chains"]["axelarnet"][`rpc`]
   }`;
 
   while (true) {
@@ -130,13 +143,14 @@ const verifyMessage = async (message: MessageFromXrpl) => {
 };
 
 const routeMessage = async ({
+  relayerConfig,
   // without 0x
   payloadHex,
   serializedUserMessage,
-}: {
+}: WithRelayerConfig<{
   payloadHex: string;
   serializedUserMessage: SerializedUserMessage;
-}) => {
+}>) => {
   const routeMessageCall = {
     route_incoming_messages: [
       {
@@ -149,13 +163,13 @@ const routeMessage = async ({
   };
 
   const command = `axelard tx wasm execute ${
-    RELAYER_CONFIG["chains"]["xrpl"]["axelarnet_gateway_address"]
+    relayerConfig.config["chains"]["xrpl"]["axelarnet_gateway_address"]
   } '${stringify(routeMessageCall)}' --keyring-backend test --from ${
-    RELAYER_CONFIG[`wallet_name`]
+    relayerConfig.config[`wallet_name`]
   } --keyring-dir ${
-    RELAYER_CONFIG["keyring_dir"]
+    relayerConfig.config["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+    relayerConfig.config["chains"]["axelarnet"][`rpc`]
   }`;
 
   while (true) {
@@ -188,16 +202,17 @@ const routeMessage = async ({
 };
 
 const executeItsHubMessage = async ({
+  relayerConfig,
   user_message,
   payloadHex,
-}: {
+}: WithRelayerConfig<{
   user_message: SerializedUserMessage;
   payloadHex: string;
-}) => {
+}>) => {
   const interchainTransfer = {
     messageType: 0,
     // Only XRP transfer is supported for now
-    tokenId: RELAYER_CONFIG[`token_ids`][`xrp`],
+    tokenId: relayerConfig.config[`token_ids`][`xrp`],
     sourceAddress: `0x${uint8ArrToHex(user_message.source_address)}`,
     destinationAddress: `0x${user_message.destination_address}`,
     amount: ethers.parseUnits(dropsToXrp(user_message.amount.drops).toString()),
@@ -226,7 +241,7 @@ const executeItsHubMessage = async ({
     ["uint256", "string", "bytes"],
     [
       3n,
-      RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+      relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
       messageEncoded,
     ],
   );
@@ -237,7 +252,7 @@ const executeItsHubMessage = async ({
   const contractCall = {
     execute: {
       cc_id: {
-        source_chain: RELAYER_CONFIG[`chains`][`xrpl`][`chain_id`],
+        source_chain: relayerConfig.config[`chains`][`xrpl`][`chain_id`],
         message_id: messageId,
       },
       payload: hubMessage.slice(2),
@@ -251,13 +266,15 @@ const executeItsHubMessage = async ({
     try {
       const output = execSync(
         `axelard tx wasm execute ${
-          RELAYER_CONFIG[`chains`][`axelarnet`][`axelarnet_gateway_address`]
+          relayerConfig.config[`chains`][`axelarnet`][
+            `axelarnet_gateway_address`
+          ]
         } '${stringify(contractCall)}' --keyring-backend test --from ${
-          RELAYER_CONFIG[`wallet_name`]
+          relayerConfig.config[`wallet_name`]
         } --keyring-dir ${
-          RELAYER_CONFIG["keyring_dir"]
+          relayerConfig.config["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-          RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+          relayerConfig.config["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
@@ -312,26 +329,28 @@ const executeItsHubMessage = async ({
 };
 
 const routeITSHubMessage = async ({
+  relayerConfig,
   messageId,
   payloadHash,
-}: {
+}: WithRelayerConfig<{
   messageId: string;
   payloadHash: string;
-}) => {
+}>) => {
   const routeMessages = {
     route_messages: [
       {
         cc_id: {
-          source_chain: RELAYER_CONFIG[`chains`][`xrpl`][`chain_id`],
+          source_chain: relayerConfig.config[`chains`][`xrpl`][`chain_id`],
           message_id: messageId,
         },
-        destination_chain: RELAYER_CONFIG[`chains`][`axelarnet`][`chain_id`],
+        destination_chain:
+          relayerConfig.config[`chains`][`axelarnet`][`chain_id`],
         destination_address:
-          RELAYER_CONFIG[`chains`][`axelarnet`][
+          relayerConfig.config[`chains`][`axelarnet`][
             `axelarnet_interchain_token_service_address`
           ],
         source_address:
-          RELAYER_CONFIG[`chains`][`xrpl`][`native_gateway_address`],
+          relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`],
         payload_hash: payloadHash,
       },
     ],
@@ -343,13 +362,15 @@ const routeITSHubMessage = async ({
     try {
       const output = execSync(
         `axelard tx wasm execute ${
-          RELAYER_CONFIG[`chains`][`axelarnet`][`axelarnet_gateway_address`]
+          relayerConfig.config[`chains`][`axelarnet`][
+            `axelarnet_gateway_address`
+          ]
         } '${stringify(routeMessages)}' --keyring-backend test --from ${
-          RELAYER_CONFIG[`wallet_name`]
+          relayerConfig.config[`wallet_name`]
         } --keyring-dir ${
-          RELAYER_CONFIG["keyring_dir"]
+          relayerConfig.config["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-          RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+          relayerConfig.config["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
@@ -398,11 +419,16 @@ const routeITSHubMessage = async ({
   }
 };
 
-const constructTransferProof = async ({ messageId }: { messageId: string }) => {
+const constructTransferProof = async ({
+  relayerConfig,
+  messageId,
+}: WithRelayerConfig<{
+  messageId: string;
+}>) => {
   const constructProofCall = {
     construct_proof: [
       {
-        source_chain: RELAYER_CONFIG[`chains`][`axelarnet`][`chain_id`],
+        source_chain: relayerConfig.config[`chains`][`axelarnet`][`chain_id`],
         message_id: messageId,
       },
     ],
@@ -413,15 +439,15 @@ const constructTransferProof = async ({ messageId }: { messageId: string }) => {
     try {
       const output = execSync(
         `axelard tx wasm execute ${
-          RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][
+          relayerConfig.config[`chains`][`xrpl-evm-sidechain`][
             `axelarnet_multisig_prover_address`
           ]
         } '${stringify(constructProofCall)}' --keyring-backend test --from ${
-          RELAYER_CONFIG[`wallet_name`]
+          relayerConfig.config[`wallet_name`]
         } --keyring-dir ${
-          RELAYER_CONFIG["keyring_dir"]
+          relayerConfig.config["keyring_dir"]
         } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-          RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+          relayerConfig.config["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
@@ -487,10 +513,11 @@ const constructTransferProof = async ({ messageId }: { messageId: string }) => {
 };
 
 const getProof = async ({
+  relayerConfig,
   multisigSessionId,
-}: {
+}: WithRelayerConfig<{
   multisigSessionId: string;
-}) => {
+}>) => {
   const getProofCall = {
     proof: {
       multisig_session_id: multisigSessionId,
@@ -501,11 +528,11 @@ const getProof = async ({
     try {
       const output = execSync(
         `axelard q wasm contract-state smart ${
-          RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][
+          relayerConfig.config[`chains`][`xrpl-evm-sidechain`][
             `axelarnet_multisig_prover_address`
           ]
         } '${stringify(getProofCall)}' --output json --node ${
-          RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+          relayerConfig.config["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
@@ -539,16 +566,17 @@ const getProof = async ({
 };
 
 export const sendExecuteDataToGateway = async ({
+  relayerConfig,
   gatewayAddress,
   executeData,
-}: {
+}: WithRelayerConfig<{
   gatewayAddress: string;
   executeData: string;
-}) => {
+}>) => {
   console.log(`Sending execute data to gateway: ${gatewayAddress}...`);
 
-  const tx = await EVM_SIDECHAIN_RELAYING_WALLET.sendTransaction({
-    from: EVM_SIDECHAIN_RELAYING_WALLET.address,
+  const tx = await relayerConfig.evmSidechainRelayingWallet.sendTransaction({
+    from: relayerConfig.evmSidechainRelayingWallet.address,
     to: gatewayAddress,
     data: `0x${executeData}`,
     value: "0",
@@ -566,26 +594,27 @@ export const sendExecuteDataToGateway = async ({
 };
 
 export const executeITSTransfer = async ({
+  relayerConfig,
   sourceChain,
   messageId,
   sourceAddress,
   payload,
-}: {
+}: WithRelayerConfig<{
   sourceChain: string;
   messageId: string;
   sourceAddress: string;
   payload: string;
-}) => {
+}>) => {
   console.log(`Executing ITS transfer on interchain token service...`);
   const commandId = id(`${sourceChain}_${messageId}`);
   const interchainTokenService = new Contract(
-    RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][
+    relayerConfig.config[`chains`][`xrpl-evm-sidechain`][
       `native_interchain_token_service_address`
     ],
     // deno-lint-ignore ban-ts-comment
     // @ts-ignore
     IAxelarExecutable,
-    EVM_SIDECHAIN_RELAYING_WALLET,
+    relayerConfig.evmSidechainRelayingWallet,
   );
   console.log({
     commandId,
@@ -596,11 +625,11 @@ export const executeITSTransfer = async ({
   });
   const tx = await interchainTokenService.execute(
     commandId,
-    RELAYER_CONFIG[`chains`][`axelarnet`][`chain_id`],
+    relayerConfig.config[`chains`][`axelarnet`][`chain_id`],
     sourceAddress,
     payload,
     {
-      gasLimit: RELAYER_CONFIG[`its_gas_limit`],
+      gasLimit: relayerConfig.config[`its_gas_limit`],
     },
   );
   const result: ethers.TransactionReceipt | null = await tx.wait();
@@ -738,30 +767,46 @@ const parseTx = (tx: TransactionStream) => {
   return messageFromXrpl;
 };
 
-const relayMessasge = async (message: MessageFromXrpl) => {
-  const { payloadHex, user_message } = await verifyMessage(message);
+const relayMessasge = async ({
+  relayerConfig,
+  message,
+}: WithRelayerConfig<{
+  message: MessageFromXrpl;
+}>) => {
+  const { payloadHex, user_message } = await verifyMessage({
+    relayerConfig,
+    message,
+  });
   await routeMessage({
+    relayerConfig,
     payloadHex,
     serializedUserMessage: user_message,
   });
   const { loggedEvent } = await executeItsHubMessage({
+    relayerConfig,
     user_message,
     payloadHex,
   });
   await routeITSHubMessage({
+    relayerConfig,
     messageId: loggedEvent.messageId,
     payloadHash: user_message.payload_hash,
   });
   const { multisigSessionId } = await constructTransferProof({
+    relayerConfig,
     messageId: loggedEvent.messageId,
   });
-  const { executeData } = await getProof({ multisigSessionId });
+  const { executeData } = await getProof({ relayerConfig, multisigSessionId });
   await sendExecuteDataToGateway({
+    relayerConfig,
     gatewayAddress:
-      RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`native_gateway_address`],
+      relayerConfig.config[`chains`][`xrpl-evm-sidechain`][
+        `native_gateway_address`
+      ],
     executeData,
   });
   await executeITSTransfer({
+    relayerConfig,
     // This will be "axelarnet" when relaying from xrpl to evm
     // Unsure about the other direction
     sourceChain: loggedEvent.sourceChain,
@@ -775,19 +820,37 @@ const relayMessasge = async (message: MessageFromXrpl) => {
   console.log("✅ Relay completed.");
 };
 
-const handleTransactionStream = async (tx: TransactionStream) => {
+const handleTransactionStream = async ({
+  relayerConfig,
+  tx,
+}: WithRelayerConfig<{
+  tx: TransactionStream;
+}>) => {
   const message = parseTx(tx);
   if (message) {
-    await relayMessasge(message);
+    await relayMessasge({ relayerConfig, message });
   }
 };
 
-const listenToXrplGatewayTransaction = async () => {
-  const xrplProvider = await getXrplProvider();
-  xrplProvider.on(`transaction`, handleTransactionStream);
+const listenToXrplGatewayTransaction = async ({
+  relayerConfig,
+}: WithRelayerConfig) => {
+  const xrplProvider = await relayerConfig.getXrplProvider();
+  xrplProvider.on(`transaction`, (tx) =>
+    handleTransactionStream({
+      relayerConfig,
+      tx,
+    }),
+  );
 };
 
-export const relayXrplToEvm = async () => {
-  await startSubscribeToXrplGateway();
-  await listenToXrplGatewayTransaction();
+export const relayXrplToEvm = async ({
+  relayerConfig,
+}: WithRelayerConfig<{}>) => {
+  await startSubscribeToXrplGateway({
+    relayerConfig,
+  });
+  await listenToXrplGatewayTransaction({
+    relayerConfig,
+  });
 };

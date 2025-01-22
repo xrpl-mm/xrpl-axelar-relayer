@@ -1,3 +1,4 @@
 .env
 .axelar/keyring-test/wallet.info
+.axelar/keyring-test/wallet-devnet-its.info
 node_modules

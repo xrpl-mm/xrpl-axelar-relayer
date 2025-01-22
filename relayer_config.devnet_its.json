@@ -1,0 +1,40 @@
+{
+  "keyring_dir": "/Users/jm/Documents/Code/xrpl-mm/xrpl-axelar-relayer/.axelar",
+  "wallet_name": "wallet-devnet-its",
+  "its_gas_limit": 8000000,
+  "token_ids": {
+    "xrp": "0xc2bb311dd03a93be4b74d3b4ab8612241c4dd1fd0232467c54a03b064f8583b6",
+    "eth": "0x807e7301d2070bb8753685fd3739aafacb88b82f24b921840241f936b3811fe8"
+  },
+  "chains": {
+    "xrpl-evm-sidechain": {
+      "chain_id": "xrpl-evm-sidechain",
+      "rpc": {
+        "http": "https://rpc.xrplevm.org"
+      },
+      "native_gateway_address": "0xf4e91aA5D4712c9C4d41Cf542Ba17Df647AC59F1",
+      "native_interchain_token_service_address": "0xc2CF6116C497282d0C8B950a973997823b14C570",
+      "axelarnet_multisig_prover_address": "axelar1hk3tql20lz26u8hj7l95qrje5farra86tjm8eedtacl6s2vlvj3qp9mmwd",
+      "axelarnet_gateway_address": "axelar1pfmvrzkvp2zxqapxptpnej998aqlf29s30cv7qv9yd98xyanfngqwgqqtk",
+      "token_contracts": {
+        "xrp": "0xD4949664cD82660AaE99bEdc034a0deA8A0bd517",
+        "eth": "0xC1989C2a64fEc4422D0fA69ca3e9f9d72ef33112"
+      }
+    },
+    "xrpl": {
+      "chain_id": "xrpl",
+      "rpc": {
+        "ws": "wss://s.devnet.rippletest.net:51233"
+      },
+      "axelarnet_gateway_address": "axelar1cdqzna3q9w74fvvh9t6jyy8ggl8a9zpnulesz7qp2lhg04ersdkq33r34a",
+      "axelarnet_multisig_prover_address": "axelar1qctacr3chzqh24numquzaswx8cqk2urvxrd05vvml03sr7es2dnspcnj2g",
+      "native_gateway_address": "rHW2cRgft1qxGKATNB8hsuFDTeccq5Q4uE"
+    },
+    "axelarnet": {
+      "rpc": "http://k8s-devnetit-coresent-3ea294cee9-0949c478b885da8a.elb.us-east-2.amazonaws.com:26657",
+      "chain_id": "axelarnet",
+      "axelarnet_gateway_address": "axelar13pchrk4hp0kds88jpwup6z65qhtrnp9068nuy2akx0mx302sw9wqzp74y0",
+      "axelarnet_interchain_token_service_address": "axelar13ehuhysn5mqjeaheeuew2gjs785f6k7jm8vfsqg3jhtpkwppcmzqtedxty"
+    }
+  }
+}

@@ -1,18 +1,19 @@
 import { ethers } from "ethers";
-import { RELAYER_CONFIG } from "../relayer_config";
 import IAxelarGateway from "./IAxelarGateway.abi.json";
 import { remove0x, unfurlEvent } from "./utils";
 import { execSync } from "child_process";
 import stringify from "safe-stable-stringify";
 import {
   isAxelarExecuteCommandOutput,
-  isGetProofSuccessOutputForRelayToEVM,
   isGetProofSuccessOutputForRelayToXRPL,
   isRouteITSMessageOutput,
   LoggedEvent,
+  RelayerConfig,
+  WithRelayerConfig,
 } from "./types";
-import { Client, SubmitRequest, SubmitResponse } from "xrpl";
-import { getXrplProvider } from "./constants";
+import { SubmitRequest, SubmitResponse } from "xrpl";
+import { AugmentedRelayerConfig } from "./relayer_config";
+
 interface ContractCallEvent {
   // 0x43F2ccD4E27099b5F580895b44eAcC866e5F7Bb1
   sender: string; // Address of the sender
@@ -44,6 +45,7 @@ async function handleContractCallEvent(
   payload: ContractCallEvent[`payload`],
   txHash: string,
   index: number,
+  relayerConfig: AugmentedRelayerConfig,
 ) {
   console.log("ContractCall Event Detected:");
   console.log("Sender:", sender);
@@ -61,6 +63,7 @@ async function handleContractCallEvent(
     eventIndex: index,
   });
   await verifyMessage({
+    relayerConfig,
     messageId,
     sourceAddress: sender, // always ITS address on EVM sidechain
     destinationChain,
@@ -69,7 +72,9 @@ async function handleContractCallEvent(
   });
 
   await routeMessage({
-    sourceChain: RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+    relayerConfig,
+    sourceChain:
+      relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
     messageId,
     sourceAddress: sender,
     destinationChain,
@@ -78,30 +83,35 @@ async function handleContractCallEvent(
   });
 
   const { loggedEvent } = await executeITSHubMessage({
-    sourceChain: RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+    relayerConfig,
+    sourceChain:
+      relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
     messageId,
     payload: payloadWithout0x,
   });
 
   const { multisigSessionId } = await constructTransferProof({
+    relayerConfig,
     messageId: loggedEvent.messageId,
     payload: loggedEvent.payload,
   });
 
-  const { txBlob } = await getProof({ multisigSessionId });
-  const submitResponse = await submitTransactionBlob(txBlob);
+  const { txBlob } = await getProof({ relayerConfig, multisigSessionId });
+  const submitResponse = await submitTransactionBlob({ relayerConfig, txBlob });
 
   if (!submitResponse.result.accepted) {
     console.log(`XRPL tx not accepted: ${submitResponse.result.engine_result}`);
     console.log(stringify(submitResponse, null, 2));
 
-    return
+    return;
   }
 
   await verifyProverMessage({
+    relayerConfig,
     xrplTxHash: submitResponse.result.tx_json.hash!,
   });
   await confirmTxStatus({
+    relayerConfig,
     multisigSessionId,
     signedTxHash: submitResponse.result.tx_json.hash!,
     // "Signers": [
@@ -116,15 +126,18 @@ async function handleContractCallEvent(
     signerPublicKey:
       submitResponse.result.tx_json.Signers![0].Signer.SigningPubKey,
   });
+
+  console.log(`✅ Relay completed.`);
 }
 
 async function verifyMessage({
+  relayerConfig,
   messageId,
   sourceAddress,
   destinationChain,
   destinationAddress,
   payloadHash,
-}: {
+}: WithRelayerConfig<{
   // "0xb7441c4bade3ce322264b33c769dea181ce2e0c151984c2fd55924f721333382-2"
   messageId: string;
   // always ITS address on EVM sidechain
@@ -133,15 +146,17 @@ async function verifyMessage({
   destinationAddress: string;
   // "ee4a05ee7582bf86217694a25875eac0b24429cf6de286631f88d699180ebe7b"
   payloadHash: string;
-}) {
+}>) {
   const command = `axelard tx wasm execute ${
-    RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`axelarnet_gateway_address`]
+    relayerConfig.config[`chains`][`xrpl-evm-sidechain`][
+      `axelarnet_gateway_address`
+    ]
   } '{
     "verify_messages": [
       ${stringify({
         cc_id: {
           source_chain:
-            RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+            relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
           message_id: messageId,
         },
         source_address: sourceAddress,
@@ -151,11 +166,11 @@ async function verifyMessage({
       })}
     ]
   }' --keyring-backend test --from ${
-    RELAYER_CONFIG[`wallet_name`]
+    relayerConfig.config[`wallet_name`]
   } --keyring-dir ${
-    RELAYER_CONFIG["keyring_dir"]
+    relayerConfig.config["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+    relayerConfig.config["chains"]["axelarnet"][`rpc`]
   }`;
 
   while (true) {
@@ -189,20 +204,21 @@ async function verifyMessage({
 }
 
 async function routeMessage({
+  relayerConfig,
   sourceChain,
   messageId,
   sourceAddress,
   destinationChain,
   destinationAddress,
   payloadHash,
-}: {
+}: WithRelayerConfig<{
   sourceChain: string;
   messageId: string;
   sourceAddress: string;
   destinationChain: string;
   destinationAddress: string;
   payloadHash: string;
-}) {
+}>) {
   const routeMessageCall = {
     route_messages: [
       {
@@ -233,13 +249,15 @@ async function routeMessage({
   //   ]
   // }' "${ARGS[@]}"
   const command = `axelard tx wasm execute ${
-    RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`axelarnet_gateway_address`]
+    relayerConfig.config[`chains`][`xrpl-evm-sidechain`][
+      `axelarnet_gateway_address`
+    ]
   } '${stringify(routeMessageCall)}' --keyring-backend test --from ${
-    RELAYER_CONFIG[`wallet_name`]
+    relayerConfig.config[`wallet_name`]
   } --keyring-dir ${
-    RELAYER_CONFIG["keyring_dir"]
+    relayerConfig.config["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+    relayerConfig.config["chains"]["axelarnet"][`rpc`]
   }`;
 
   while (true) {
@@ -292,14 +310,15 @@ async function routeMessage({
 
 // axelard tx wasm execute $AXELARNET_GATEWAY '{"execute":{"cc_id":{"source_chain":"xrpl-evm-sidechain","message_id":"0xb7441c4bade3ce322264b33c769dea181ce2e0c151984c2fd55924f721333382-2"},"payload":"0000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000047872706c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001600000000000000000000000000000000000000000000000000000000000000000807e7301d2070bb8753685fd3739aafacb88b82f24b921840241f936b3811fe800000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000014ac2fd8e04577cc5199d74e1a681847803a7712490000000000000000000000000000000000000000000000000000000000000000000000000000000000000014928846baf59bd48c28b131855472d04c93bbd0b70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}}' "${ARGS[@]}"
 async function executeITSHubMessage({
+  relayerConfig,
   sourceChain,
   messageId,
   payload,
-}: {
+}: WithRelayerConfig<{
   sourceChain: string;
   messageId: string;
   payload: string;
-}) {
+}>) {
   const executeCall = {
     execute: {
       cc_id: {
@@ -311,13 +330,13 @@ async function executeITSHubMessage({
   };
 
   const command = `axelard tx wasm execute ${
-    RELAYER_CONFIG[`chains`][`axelarnet`][`axelarnet_gateway_address`]
+    relayerConfig.config[`chains`][`axelarnet`][`axelarnet_gateway_address`]
   } '${stringify(executeCall)}' --keyring-backend test --from ${
-    RELAYER_CONFIG[`wallet_name`]
+    relayerConfig.config[`wallet_name`]
   } --keyring-dir ${
-    RELAYER_CONFIG["keyring_dir"]
+    relayerConfig.config["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+    relayerConfig.config["chains"]["axelarnet"][`rpc`]
   }`;
 
   let loggedEvent: LoggedEvent | null = null;
@@ -378,29 +397,30 @@ async function executeITSHubMessage({
 
 // axelard tx wasm execute $XRPL_MULTISIG_PROVER '{"construct_proof":{"cc_id":{"source_chain":"axelar","message_id":"0xae1dfbc0b61849e587b038776d1f60094aa59b6d14e44e48647c8b7f586bb62b-2119"},"payload":"0000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000127872706c2d65766d2d73696465636861696e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001600000000000000000000000000000000000000000000000000000000000000000807e7301d2070bb8753685fd3739aafacb88b82f24b921840241f936b3811fe800000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000014ac2fd8e04577cc5199d74e1a681847803a7712490000000000000000000000000000000000000000000000000000000000000000000000000000000000000014928846baf59bd48c28b131855472d04c93bbd0b70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}}' "${ARGS[@]}"
 async function constructTransferProof({
+  relayerConfig,
   messageId,
   payload,
-}: {
+}: WithRelayerConfig<{
   messageId: string;
   payload: string;
-}) {
+}>) {
   const constructProofCall = {
     construct_proof: {
       message_id: {
-        source_chain: RELAYER_CONFIG[`chains`][`axelarnet`][`chain_id`],
+        source_chain: relayerConfig.config[`chains`][`axelarnet`][`chain_id`],
         message_id: messageId,
       },
       payload: payload,
     },
   };
   const command = `axelard tx wasm execute ${
-    RELAYER_CONFIG[`chains`][`xrpl`][`axelarnet_multisig_prover_address`]
+    relayerConfig.config[`chains`][`xrpl`][`axelarnet_multisig_prover_address`]
   } '${stringify(constructProofCall)}' --keyring-backend test --from ${
-    RELAYER_CONFIG[`wallet_name`]
+    relayerConfig.config[`wallet_name`]
   } --keyring-dir ${
-    RELAYER_CONFIG["keyring_dir"]
+    relayerConfig.config["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+    relayerConfig.config["chains"]["axelarnet"][`rpc`]
   }`;
 
   let loggedEvent: LoggedEvent | null = null;
@@ -469,10 +489,11 @@ async function constructTransferProof({
 }
 
 const getProof = async ({
+  relayerConfig,
   multisigSessionId,
-}: {
+}: WithRelayerConfig<{
   multisigSessionId: string;
-}) => {
+}>) => {
   const getProofCall = {
     proof: {
       multisig_session_id: multisigSessionId,
@@ -483,9 +504,11 @@ const getProof = async ({
     try {
       const output = execSync(
         `axelard q wasm contract-state smart ${
-          RELAYER_CONFIG[`chains`][`xrpl`][`axelarnet_multisig_prover_address`]
+          relayerConfig.config[`chains`][`xrpl`][
+            `axelarnet_multisig_prover_address`
+          ]
         } '${stringify(getProofCall)}' --output json --node ${
-          RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+          relayerConfig.config["chains"]["axelarnet"][`rpc`]
         }`,
         {
           env: {
@@ -516,15 +539,17 @@ const getProof = async ({
   }
 };
 
-async function submitTransactionBlob(txBlob: string): Promise<SubmitResponse> {
-  console.log(`Submitting transaction blob: ${txBlob}`);
+async function submitTransactionBlob(
+  args: WithRelayerConfig<{ txBlob: string }>,
+): Promise<SubmitResponse> {
+  console.log(`Submitting transaction blob: ${args.txBlob}`);
   const request: SubmitRequest = {
     command: "submit",
-    tx_blob: txBlob,
+    tx_blob: args.txBlob,
     fail_hard: true,
   };
 
-  const client = await getXrplProvider();
+  const client = await args.relayerConfig.getXrplProvider();
   const response = await client.request(request);
 
   console.log(
@@ -535,7 +560,10 @@ async function submitTransactionBlob(txBlob: string): Promise<SubmitResponse> {
 }
 
 // axelard tx wasm execute $XRPL_GATEWAY '{"verify_messages":[{"prover_message":"7FFD99C31E7FFAE2835208B9EE0617C15B357776C97EE2E16268A86E7002C478"}]}' "${ARGS[@]}"
-async function verifyProverMessage({ xrplTxHash }: { xrplTxHash: string }) {
+async function verifyProverMessage({
+  relayerConfig,
+  xrplTxHash,
+}: WithRelayerConfig<{ xrplTxHash: string }>) {
   const verifyMessageCall = {
     verify_messages: [
       {
@@ -544,13 +572,13 @@ async function verifyProverMessage({ xrplTxHash }: { xrplTxHash: string }) {
     ],
   };
   const command = `axelard tx wasm execute ${
-    RELAYER_CONFIG[`chains`][`xrpl`][`axelarnet_gateway_address`]
+    relayerConfig.config[`chains`][`xrpl`][`axelarnet_gateway_address`]
   } '${stringify(verifyMessageCall)}' --keyring-backend test --from ${
-    RELAYER_CONFIG[`wallet_name`]
+    relayerConfig.config[`wallet_name`]
   } --keyring-dir ${
-    RELAYER_CONFIG["keyring_dir"]
+    relayerConfig.config["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+    relayerConfig.config["chains"]["axelarnet"][`rpc`]
   }`;
 
   while (true) {
@@ -578,14 +606,15 @@ async function verifyProverMessage({ xrplTxHash }: { xrplTxHash: string }) {
 }
 // axelard tx wasm execute $XRPL_MULTISIG_PROVER '{"confirm_tx_status":{"multisig_session_id":"84","signed_tx_hash":"7FFD99C31E7FFAE2835208B9EE0617C15B357776C97EE2E16268A86E7002C478","signer_public_keys":[{"ecdsa":"0226BB43B7E6A6EBD4A07C852BB2F054B32A53286F4465FF1CF9C0D56EFB1FE113"}]}}' "${ARGS[@]}"
 async function confirmTxStatus({
+  relayerConfig,
   multisigSessionId,
   signedTxHash,
   signerPublicKey,
-}: {
+}: WithRelayerConfig<{
   multisigSessionId: string;
   signedTxHash: string;
   signerPublicKey: string;
-}) {
+}>) {
   const confirmTxStatusCall = {
     confirm_tx_status: {
       multisig_session_id: multisigSessionId,
@@ -595,13 +624,13 @@ async function confirmTxStatus({
   };
 
   const command = `axelard tx wasm execute ${
-    RELAYER_CONFIG[`chains`][`xrpl`][`axelarnet_multisig_prover_address`]
+    relayerConfig.config[`chains`][`xrpl`][`axelarnet_multisig_prover_address`]
   } '${stringify(confirmTxStatusCall)}' --keyring-backend test --from ${
-    RELAYER_CONFIG[`wallet_name`]
+    relayerConfig.config[`wallet_name`]
   } --keyring-dir ${
-    RELAYER_CONFIG["keyring_dir"]
+    relayerConfig.config["keyring_dir"]
   } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    RELAYER_CONFIG["chains"]["axelarnet"][`rpc`]
+    relayerConfig.config["chains"]["axelarnet"][`rpc`]
   }`;
 
   while (true) {
@@ -628,12 +657,16 @@ async function confirmTxStatus({
   }
 }
 
-const listenToEventsOnNewBlock = async () => {
+const listenToEventsOnNewBlock = async ({
+  relayerConfig,
+}: WithRelayerConfig<{}>) => {
   const provider = new ethers.JsonRpcProvider(
-    RELAYER_CONFIG["chains"]["xrpl-evm-sidechain"]["rpc"]["http"],
+    relayerConfig.config["chains"]["xrpl-evm-sidechain"]["rpc"]["http"],
   );
   const contract = new ethers.Contract(
-    RELAYER_CONFIG["chains"]["xrpl-evm-sidechain"]["native_gateway_address"],
+    relayerConfig.config["chains"]["xrpl-evm-sidechain"][
+      "native_gateway_address"
+    ],
     IAxelarGateway,
     provider,
   );
@@ -679,6 +712,7 @@ const listenToEventsOnNewBlock = async () => {
           event.args.payload,
           txHash,
           index,
+          relayerConfig,
         );
       });
     } catch (error) {
@@ -689,6 +723,8 @@ const listenToEventsOnNewBlock = async () => {
   console.log("Listening for events on new blocks...");
 };
 
-export const relayEvmToXrpl = async () => {
-  listenToEventsOnNewBlock();
+export const relayEvmToXrpl = async ({
+  relayerConfig,
+}: WithRelayerConfig<{}>) => {
+  listenToEventsOnNewBlock({ relayerConfig });
 };

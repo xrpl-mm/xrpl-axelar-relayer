@@ -1,7 +1,6 @@
 import { ethers } from "ethers";
-import { EVM_SIDECHAIN_RELAYING_WALLET } from "../src/constants";
-import { RELAYER_CONFIG } from "../relayer_config";
 import { xrplAccountToEvmAddress } from "../src/utils";
+import { bootstrap } from "../src/bootstrap";
 
 // Address
 // rEjrYCKjc3yR4qokX1Yy4y4EPj924UndeC
@@ -19,13 +18,17 @@ const testingEnv = {
 };
 
 async function sendMessageFromEVMToXRPL(amount: bigint) {
+  const augmentedRelayerConfig = bootstrap();
+
   console.log(`Approving`);
   const tokenContractAddress =
-    RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`token_contracts`][`xrp`];
+    augmentedRelayerConfig.config[`chains`][`xrpl-evm-sidechain`][
+      `token_contracts`
+    ][`xrp`];
   const tokenContract = new ethers.Contract(
     tokenContractAddress,
     [`function approve(address spender, uint256 amount) public returns (bool)`],
-    EVM_SIDECHAIN_RELAYING_WALLET,
+    augmentedRelayerConfig.evmSidechainRelayingWallet,
   );
   const approveResult = await tokenContract.approve(
     testingEnv.testingContractAddress,
@@ -60,7 +63,7 @@ async function sendMessageFromEVMToXRPL(amount: bigint) {
         type: "function",
       },
     ],
-    EVM_SIDECHAIN_RELAYING_WALLET,
+    augmentedRelayerConfig.evmSidechainRelayingWallet,
   );
 
   console.log(`Sending token`);

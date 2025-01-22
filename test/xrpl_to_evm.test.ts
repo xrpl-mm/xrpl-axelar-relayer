@@ -1,11 +1,12 @@
 import abi from "ethereumjs-abi";
 import { getBytes } from "ethers";
 import { Client, Payment, Wallet, xrpToDrops } from "xrpl";
-import { RELAYER_CONFIG } from "../relayer_config.ts";
 import { Buffer } from "node:buffer";
 import { createPayloadHash } from "../src/utils.ts";
+import { bootstrap } from "../src/bootstrap.ts";
 
 async function sendMessageFromXRPLtoEVM() {
+  const relayerConfig = bootstrap();
   // Can always get a new one from https://xrpl.org/resources/dev-tools/xrp-faucets
   const SECRET = `sEd7bNqUNqBF1Mh3Vs1hgbk5hr7Ciis`;
   const xrplWallet = Wallet.fromSeed(SECRET);
@@ -39,7 +40,8 @@ async function sendMessageFromXRPLtoEVM() {
     Account: xrplWallet.address,
     Amount: AMOUNT,
     Fee: xrpToDrops("1"),
-    Destination: RELAYER_CONFIG[`chains`][`xrpl`][`native_gateway_address`],
+    Destination:
+      relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`],
     SigningPubKey: xrplWallet.publicKey,
     SourceTag: 8989_8989,
     Memos: [
@@ -54,7 +56,7 @@ async function sendMessageFromXRPLtoEVM() {
       {
         Memo: {
           MemoData: Buffer.from(
-            RELAYER_CONFIG[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+            relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
           )
             .toString("hex")
             .toUpperCase(),
@@ -72,7 +74,9 @@ async function sendMessageFromXRPLtoEVM() {
     ],
   };
 
-  const provider = new Client(RELAYER_CONFIG[`chains`][`xrpl`][`rpc`][`ws`]);
+  const provider = new Client(
+    relayerConfig.config[`chains`][`xrpl`][`rpc`][`ws`],
+  );
   await provider.connect();
   const autoFilledTx = await provider.autofill(paymentTx);
 

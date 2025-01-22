@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from "express";
 import { inMemoryCache } from "./in_memory_cache";
 
-export const runServer = () => {
+export const runServer = ({}: {}) => {
   const app = express();
   const port = 3000;
 
