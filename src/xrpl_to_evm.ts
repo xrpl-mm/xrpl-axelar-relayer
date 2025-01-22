@@ -1,6 +1,7 @@
 import { Buffer } from "buffer";
-import { Contract, ethers, id } from "ethers";
+import { Contract, ethers, id, parseEther } from "ethers";
 import {
+  axelardArgs,
   uint8ArrToHex,
   unfurlEvent,
   xrplAccountToEvmAddress,
@@ -21,13 +22,23 @@ import { inMemoryCache } from "./in_memory_cache.ts";
 import stringify from "safe-stable-stringify";
 
 type SerializedUserMessage = {
-  tx_id: number[];
-  source_address: number[];
+  tx_id: number[] | string;
+  source_address: number[] | string;
   destination_chain: string;
   destination_address: string;
-  amount: {
-    drops: number;
-  };
+  amount:
+    | {
+        drops: number;
+      }
+    | {
+        issued: [
+          {
+            issuer: string;
+            currency: string;
+          },
+          string,
+        ];
+      };
   payload_hash: string;
 };
 
@@ -38,17 +49,48 @@ const startSubscribeToXrplGateway = async ({
   const subscribeRequest: SubscribeRequest = {
     id: `subscribe-to-xrpl-gateway`,
     command: "subscribe",
+    streams: ["transactions"],
     accounts: [
       relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`],
     ],
   };
   const subscribeResponse = await xrplProvider.request(subscribeRequest);
+  console.log(stringify(subscribeResponse, null, 2));
   if (subscribeResponse.id === "subscribe-to-xrpl-gateway") {
-    console.log("Successfully subscribed!");
+    console.log(
+      `Successfully subscribed to ${
+        relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`]
+      }!`,
+    );
   } else {
     console.error("Error subscribing: ", subscribeResponse);
   }
 };
+
+// axelard tx wasm execute $XRPL_GATEWAY '{
+//   "verify_messages": [
+//     {
+//       "user_message": {
+//         "tx_id": "D5C27EAA8AF696F34E05254B679EAFAA70BC7082C00F3A8C972D5E46D65FB816",
+//         "source_address": "r3egfoj8QvKHUGMo6WDJ4P3a1kWMqhBBv5",
+//         "destination_chain": "xrpl-evm-sidechain",
+//         "destination_address": "aC2fD8E04577cC5199D74e1A681847803a771249",
+//         "payload_hash": null,
+//         "amount": {
+//           "issued": [
+//             {
+//               "issuer": "r3egfoj8QvKHUGMo6WDJ4P3a1kWMqhBBv5",
+//               "currency": "ETH"
+//             },
+//             "1"
+//           ]
+//         }
+//       }
+//     }
+//   ]
+// }' "${ARGS[@]}"
+
+// axelard tx wasm execute axelar1cdqzna3q9w74fvvh9t6jyy8ggl8a9zpnulesz7qp2lhg04ersdkq33r34a '{"verify_messages":[{"user_message":{"amount":{"issued":[{"currency":"ETH","issuer":"r3egfoj8QvKHUGMo6WDJ4P3a1kWMqhBBv5"},"0.00126"]},"destination_address":"8E03C54DD97FA469D0A4F7A15CBC5DDD2EE5E5C5","destination_chain":"xrpl-evm-sidechain","payload_hash":"B036C6E7F6437EB7E1206EE44DA1D1F57CAEB7B1045770907F28C44713D42786","source_address":[83,232,236,177,156,57,237,140,254,204,27,39,41,210,214,48,91,177,222,16],"tx_id":[48,149,2,16,255,151,95,111,111,229,155,90,148,150,240,213,52,232,125,68,167,236,194,192,118,56,134,81,104,197,119,16]}}]}' --keyring-backend test --from relayer --keyring-dir /Users/jm/Documents/Code/xrpl-mm/xrpl-axelar-relayer/.axelar --gas auto --gas-adjustment 1.4 --gas-prices 0.00005uits --chain-id devnet-its --node http://k8s-devnetit-coresent-3ea294cee9-0949c478b885da8a.elb.us-east-2.amazonaws.com:26657
 
 // Prepare the verify_messages JSON
 const prepareVerifyMessages = ({
@@ -64,13 +106,31 @@ const prepareVerifyMessages = ({
   const source_address = Array.from(
     new Uint8Array(Buffer.from(sourceAddressHex, "hex")),
   );
-  const user_message = {
-    tx_id: tx_id,
-    source_address: source_address,
+  const amount: SerializedUserMessage["amount"] =
+    typeof message.amount === "string"
+      ? { drops: Number(message.amount) }
+      : {
+          issued: [
+            {
+              issuer: message.amount.issuer,
+              currency: message.amount.currency,
+            },
+            message.amount.value,
+          ],
+        };
+  const user_message: SerializedUserMessage = {
+    tx_id:
+      relayerConfig[`config`][`environment`] === `devnet-its`
+        ? message.tx_hash
+        : tx_id,
+    source_address:
+      relayerConfig[`config`][`environment`] === `devnet-its`
+        ? message.source_address
+        : source_address,
     destination_chain:
       relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
     destination_address: message.destination_address,
-    amount: { drops: Number(message.amount) },
+    amount,
     payload_hash: message.payload_hash,
   };
   const verifyMessages = {
@@ -104,11 +164,9 @@ const verifyMessage = async ({
     relayerConfig.config["chains"]["xrpl"]["axelarnet_gateway_address"]
   } '${verifyMessagesJson}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
-  } --keyring-dir ${
-    relayerConfig.config["keyring_dir"]
-  } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    relayerConfig.config["chains"]["axelarnet"][`rpc`]
-  }`;
+  } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
+    relayerConfig[`config`][`environment`],
+  )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   while (true) {
     try {
@@ -151,26 +209,56 @@ const routeMessage = async ({
   payloadHex: string;
   serializedUserMessage: SerializedUserMessage;
 }>) => {
-  const routeMessageCall = {
-    route_incoming_messages: [
-      {
-        payload: payloadHex,
-        message: {
-          user_message: serializedUserMessage,
-        },
-      },
-    ],
-  };
+  // axelard tx wasm execute $XRPL_GATEWAY '{
+  //   "route_incoming_messages": [
+  //     {
+  //       "message": {
+  //         "tx_id": "D5C27EAA8AF696F34E05254B679EAFAA70BC7082C00F3A8C972D5E46D65FB816",
+  //         "source_address": "r3egfoj8QvKHUGMo6WDJ4P3a1kWMqhBBv5",
+  //         "destination_chain": "xrpl-evm-sidechain",
+  //         "destination_address": "aC2fD8E04577cC5199D74e1A681847803a771249",
+  //         "payload_hash": null,
+  //         "amount": {
+  //           "issued": [
+  //             {
+  //               "issuer": "r3egfoj8QvKHUGMo6WDJ4P3a1kWMqhBBv5",
+  //               "currency": "ETH"
+  //             },
+  //             "1"
+  //           ]
+  //         }
+  //       }
+  //     }
+  //   ]
+  // }' "${ARGS[@]}"
+  const routeMessageCall =
+    relayerConfig[`config`][`environment`] === `devnet-its`
+      ? {
+          route_incoming_messages: [
+            {
+              payload: payloadHex,
+              message: serializedUserMessage,
+            },
+          ],
+        }
+      : {
+          route_incoming_messages: [
+            {
+              payload: payloadHex,
+              message: {
+                user_message: serializedUserMessage,
+              },
+            },
+          ],
+        };
 
   const command = `axelard tx wasm execute ${
     relayerConfig.config["chains"]["xrpl"]["axelarnet_gateway_address"]
   } '${stringify(routeMessageCall)}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
-  } --keyring-dir ${
-    relayerConfig.config["keyring_dir"]
-  } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-    relayerConfig.config["chains"]["axelarnet"][`rpc`]
-  }`;
+  } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
+    relayerConfig[`config`][`environment`],
+  )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   while (true) {
     try {
@@ -201,6 +289,8 @@ const routeMessage = async ({
   console.log("Routing completed.");
 };
 
+// axelard tx wasm execute $AXELARNET_GATEWAY '{"execute":{"cc_id":{"source_chain":"xrpl","message_id":"0xd5c27eaa8af696f34e05254b679eafaa70bc7082c00f3a8c972d5e46d65fb816"},"payload":"0000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000127872706c2d65766d2d73696465636861696e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001600000000000000000000000000000000000000000000000000000000000000000807e7301d2070bb8753685fd3739aafacb88b82f24b921840241f936b3811fe800000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000001453e8ecb19c39ed8cfecc1b2729d2d6305bb1de100000000000000000000000000000000000000000000000000000000000000000000000000000000000000014ac2fd8e04577cc5199d74e1a681847803a7712490000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}}' "${ARGS[@]}"
+
 const executeItsHubMessage = async ({
   relayerConfig,
   user_message,
@@ -209,13 +299,33 @@ const executeItsHubMessage = async ({
   user_message: SerializedUserMessage;
   payloadHex: string;
 }>) => {
+  const amount =
+    `drops` in user_message.amount
+      ? ethers.parseUnits(dropsToXrp(user_message.amount.drops).toString())
+      : // TODO: handle other currencies that use different decimals
+        parseEther(user_message.amount.issued[1]);
   const interchainTransfer = {
     messageType: 0,
-    // Only XRP transfer is supported for now
-    tokenId: relayerConfig.config[`token_ids`][`xrp`],
-    sourceAddress: `0x${uint8ArrToHex(user_message.source_address)}`,
+    // TODO: parameterize this
+    tokenId:
+      relayerConfig[`config`][`environment`] === `devnet-its`
+        ? relayerConfig.config[`token_ids`][`eth`]
+        : relayerConfig.config[`token_ids`][`xrp`],
+    sourceAddress:
+      typeof user_message.source_address === `string`
+        ? `0x${uint8ArrToHex(
+            Array.from(
+              new Uint8Array(
+                Buffer.from(
+                  xrplAccountToEvmAddress(user_message.source_address).slice(2),
+                  "hex",
+                ),
+              ),
+            ),
+          )}`
+        : `0x${uint8ArrToHex(user_message.source_address)}`,
     destinationAddress: `0x${user_message.destination_address}`,
-    amount: ethers.parseUnits(dropsToXrp(user_message.amount.drops).toString()),
+    amount,
     data: `0x${payloadHex}`,
   };
 
@@ -246,8 +356,14 @@ const executeItsHubMessage = async ({
     ],
   );
 
-  const txIdHex = uint8ArrToHex(user_message.tx_id);
-  const messageId = `0x${txIdHex.toLowerCase()}-0`;
+  const txIdHex =
+    typeof user_message.tx_id === `string`
+      ? user_message.tx_id
+      : uint8ArrToHex(user_message.tx_id);
+  const messageId =
+    relayerConfig[`config`][`environment`] === `devnet-its`
+      ? `0x${txIdHex.toLowerCase()}`
+      : `0x${txIdHex.toLowerCase()}-0`;
 
   const contractCall = {
     execute: {
@@ -271,11 +387,9 @@ const executeItsHubMessage = async ({
           ]
         } '${stringify(contractCall)}' --keyring-backend test --from ${
           relayerConfig.config[`wallet_name`]
-        } --keyring-dir ${
-          relayerConfig.config["keyring_dir"]
-        } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-          relayerConfig.config["chains"]["axelarnet"][`rpc`]
-        }`,
+        } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
+          relayerConfig[`config`][`environment`],
+        )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`,
         {
           env: {
             ...process.env,
@@ -367,11 +481,9 @@ const routeITSHubMessage = async ({
           ]
         } '${stringify(routeMessages)}' --keyring-backend test --from ${
           relayerConfig.config[`wallet_name`]
-        } --keyring-dir ${
-          relayerConfig.config["keyring_dir"]
-        } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-          relayerConfig.config["chains"]["axelarnet"][`rpc`]
-        }`,
+        } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
+          relayerConfig[`config`][`environment`],
+        )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`,
         {
           env: {
             ...process.env,
@@ -444,11 +556,9 @@ const constructTransferProof = async ({
           ]
         } '${stringify(constructProofCall)}' --keyring-backend test --from ${
           relayerConfig.config[`wallet_name`]
-        } --keyring-dir ${
-          relayerConfig.config["keyring_dir"]
-        } --gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier --node ${
-          relayerConfig.config["chains"]["axelarnet"][`rpc`]
-        }`,
+        } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
+          relayerConfig[`config`][`environment`],
+        )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`,
         {
           env: {
             ...process.env,
@@ -649,17 +759,22 @@ export const executeITSTransfer = async ({
   );
 };
 
-const parseTx = (tx: TransactionStream) => {
-  if (!tx.tx_json) {
-    console.log(`Transaction does not have tx_json`);
+const parseTx = (args: WithRelayerConfig<{ tx: TransactionStream }>) => {
+  if (!args.tx.tx_json) {
     return;
   }
-  if (tx.tx_json.TransactionType !== `Payment`) {
-    console.log(`Transaction is not a payment`);
+  if (args.tx.tx_json.TransactionType !== `Payment`) {
     return;
   }
-  if (!tx.tx_json.Memos || tx.tx_json.Memos.length === 0) {
-    console.log(`Payment does not have memos`);
+  if (!args.tx.tx_json.Memos || args.tx.tx_json.Memos.length === 0) {
+    return;
+  }
+
+  if (
+    args.tx.tx_json.Destination !==
+    args.relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`]
+  ) {
+    console.log(`Payment is not to the XRPL gateway`);
     return;
   }
 
@@ -697,7 +812,7 @@ const parseTx = (tx: TransactionStream) => {
   //     "MemoType": "7061796C6F61645F68617368"
   //   }
   // }
-  for (const memo of tx.tx_json.Memos) {
+  for (const memo of args.tx.tx_json.Memos) {
     if (!memo.Memo || !memo.Memo.MemoData || !memo.Memo.MemoType) {
       console.log(`Memo does not have MemoData`);
       continue;
@@ -728,18 +843,18 @@ const parseTx = (tx: TransactionStream) => {
     return;
   }
 
-  const sourceAddress = tx.tx_json.Account;
+  const sourceAddress = args.tx.tx_json.Account;
   console.log(`New payment from ${sourceAddress}`);
   // this field exists
   // deno-lint-ignore ban-ts-comment
   // @ts-ignore
-  const txHash = tx.hash as string;
+  const txHash = args.tx.hash as string;
 
-  console.log(stringify(tx));
+  console.log(stringify(args.tx));
 
   // deno-lint-ignore ban-ts-comment
   // @ts-ignore
-  const amount = tx.tx_json.DeliverMax as typeof tx.tx_json.Amount;
+  const amount = args.tx.tx_json.DeliverMax as typeof args.tx.tx_json.Amount;
   if (typeof amount !== `string` && `mpt_issuance_id` in amount) {
     console.log(`MPTAmount is not supported`);
     return;
@@ -826,7 +941,7 @@ const handleTransactionStream = async ({
 }: WithRelayerConfig<{
   tx: TransactionStream;
 }>) => {
-  const message = parseTx(tx);
+  const message = parseTx({ relayerConfig, tx });
   if (message) {
     await relayMessasge({ relayerConfig, message });
   }
@@ -836,12 +951,12 @@ const listenToXrplGatewayTransaction = async ({
   relayerConfig,
 }: WithRelayerConfig) => {
   const xrplProvider = await relayerConfig.getXrplProvider();
-  xrplProvider.on(`transaction`, (tx) =>
+  xrplProvider.on(`transaction`, (tx) => {
     handleTransactionStream({
       relayerConfig,
       tx,
-    }),
-  );
+    });
+  });
 };
 
 export const relayXrplToEvm = async ({

@@ -1,9 +1,10 @@
 {
   "keyring_dir": "/Users/jm/Documents/Code/xrpl-mm/xrpl-axelar-relayer/.axelar",
-  "wallet_name": "wallet-devnet-its",
+  "wallet_name": "relayer",
+  "environment": "devnet-its",
   "its_gas_limit": 8000000,
   "token_ids": {
-    "xrp": "0xc2bb311dd03a93be4b74d3b4ab8612241c4dd1fd0232467c54a03b064f8583b6",
+    "xrp": "not supported",
     "eth": "0x807e7301d2070bb8753685fd3739aafacb88b82f24b921840241f936b3811fe8"
   },
   "chains": {
@@ -17,7 +18,7 @@
       "axelarnet_multisig_prover_address": "axelar1hk3tql20lz26u8hj7l95qrje5farra86tjm8eedtacl6s2vlvj3qp9mmwd",
       "axelarnet_gateway_address": "axelar1pfmvrzkvp2zxqapxptpnej998aqlf29s30cv7qv9yd98xyanfngqwgqqtk",
       "token_contracts": {
-        "xrp": "0xD4949664cD82660AaE99bEdc034a0deA8A0bd517",
+        "xrp": "not supported",
         "eth": "0xC1989C2a64fEc4422D0fA69ca3e9f9d72ef33112"
       }
     },

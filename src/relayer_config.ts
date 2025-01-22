@@ -5,6 +5,7 @@ import { z } from "zod";
 export const relayerConfigSchema = z.object({
   keyring_dir: z.string(),
   wallet_name: z.string(),
+  environment: z.string(),
   its_gas_limit: z.number(),
   token_ids: z.object({
     xrp: z.string(),

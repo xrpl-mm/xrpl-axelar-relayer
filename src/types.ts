@@ -5,6 +5,7 @@ export type RelayerConfig = {
   keyring_dir: string;
   wallet_name: string;
   its_gas_limit: number;
+  environment: string;
   token_ids: {
     xrp: string;
     eth: string;

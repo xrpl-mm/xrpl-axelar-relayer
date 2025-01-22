@@ -5,7 +5,8 @@
   "scripts": {
     "start": "npx ts-node src/main.ts",
     "to-xrpl": "npx ts-node ./test/evm_to_xrpl.test.ts",
-    "to-evm": "npx ts-node ./test/xrpl_to_evm.test.ts"
+    "to-evm": "npx ts-node ./test/xrpl_to_evm.test.ts",
+    "eth-to-evm": "npx ts-node ./test/xrpl_to_evm.eth.temp.test.ts relayer_config.devnet_its.json"
   },
   "keywords": [],
   "author": "9oelM",

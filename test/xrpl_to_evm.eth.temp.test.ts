@@ -1,16 +1,25 @@
 import abi from "ethereumjs-abi";
 import { getBytes } from "ethers";
-import { Client, Payment, Wallet, xrpToDrops } from "xrpl";
+import { Client, ECDSA, Payment, Wallet, xrpToDrops } from "xrpl";
 import { Buffer } from "node:buffer";
 import { createPayloadHash } from "../src/utils.ts";
 import { bootstrap } from "../src/bootstrap.ts";
 
+console.log(`called`);
+
 async function sendMessageFromXRPLtoEVM() {
   const relayerConfig = bootstrap();
   // Can always get a new one from https://xrpl.org/resources/dev-tools/xrp-faucets
-  const SECRET = `sEdS8VVz9rALu9XzuccUH4FHaawuiSw`;
-  const xrplWallet = Wallet.fromSeed(SECRET);
-  const AMOUNT = xrpToDrops("0.00125");
+  const SECRET = `ssXUdvqpJxycxMQJUCr2bvMf4kuvE`;
+  const xrplWallet = Wallet.fromSeed(SECRET, {
+    algorithm: ECDSA.secp256k1,
+  });
+
+  if (xrplWallet.address !== `r3egfoj8QvKHUGMo6WDJ4P3a1kWMqhBBv5`) {
+    throw new Error(`Invalid XRPL wallet address`);
+  }
+
+  const AMOUNT = "0.00126";
   const EVM_DESTINATION = `8E03c54DD97fa469d0a4f7a15cbc5dDD2Ee5E5C5`;
 
   const payloadData: Buffer = abi.rawEncode(
@@ -35,10 +44,20 @@ async function sendMessageFromXRPLtoEVM() {
 
   console.log(`payload data: ${payloadDataHex}`);
 
+  console.log(
+    `sending to ${
+      relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`]
+    }`,
+  );
+
   const paymentTx: Payment = {
     TransactionType: "Payment",
     Account: xrplWallet.address,
-    Amount: AMOUNT,
+    Amount: {
+      currency: "ETH",
+      value: AMOUNT,
+      issuer: xrplWallet.address,
+    },
     Fee: xrpToDrops("1"),
     Destination:
       relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`],

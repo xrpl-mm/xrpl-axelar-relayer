@@ -84,3 +84,13 @@ export function unfurlEvent(event: LoggedEvent): UnfurledEvent {
 
   return unfurled;
 }
+
+export function axelardArgs(axelarnet: string): string {
+  if (axelarnet === "devnet-its") {
+    return `--gas auto --gas-adjustment 1.4 --gas-prices 0.00005uits --chain-id devnet-its`;
+  } else if (axelarnet === "devnet-amplifier") {
+    return `--gas 20000000 --gas-adjustment 1.5 --gas-prices 0.00005uamplifier --chain-id devnet-amplifier`;
+  }
+
+  throw new Error(`Invalid axelarnet: ${axelarnet}`);
+}
