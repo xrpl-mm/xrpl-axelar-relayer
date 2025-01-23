@@ -76,7 +76,7 @@ async function verifyMessage({
   } '${stringify(verifyMessageCall)}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
   } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-    relayerConfig[`config`][`environment`],
+    relayerConfig[`config`][`environment`]
   )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   while (true) {
@@ -102,7 +102,7 @@ async function verifyMessage({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for verification to complete...`,
+        `Error: ${error.message}. Waiting for verification to complete...`
       );
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -161,7 +161,7 @@ async function routeMessage({
   } '${stringify(routeMessageCall)}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
   } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-    relayerConfig[`config`][`environment`],
+    relayerConfig[`config`][`environment`]
   )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   while (true) {
@@ -180,7 +180,7 @@ async function routeMessage({
       if (isRouteITSMessageOutput(parsed)) {
         if (parsed.code === 0) {
           console.log(
-            `ITS Hub message route request submitted: ${parsed.txhash}`,
+            `ITS Hub message route request submitted: ${parsed.txhash}`
           );
           break;
         } else {
@@ -188,8 +188,8 @@ async function routeMessage({
             `Error: ITS Hub message routing failed (code is not 0): ${stringify(
               parsed,
               null,
-              2,
-            )}`,
+              2
+            )}`
           );
         }
       } else {
@@ -197,14 +197,14 @@ async function routeMessage({
           `Error: parsed output is not a RouteITSMessageOutput: ${stringify(
             parsed,
             null,
-            2,
-          )}`,
+            2
+          )}`
         );
       }
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for ITS Hub message to be routed`,
+        `Error: ${error.message}. Waiting for ITS Hub message to be routed`
       );
     }
 
@@ -238,7 +238,7 @@ async function executeITSHubMessage({
   } '${stringify(executeCall)}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
   } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-    relayerConfig[`config`][`environment`],
+    relayerConfig[`config`][`environment`]
   )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   let loggedEvent: LoggedEvent | null = null;
@@ -269,7 +269,7 @@ async function executeITSHubMessage({
             continue;
           } else {
             const contractCalledEvent = firstLog.events.find(
-              ({ type }) => type === "wasm-contract_called",
+              ({ type }) => type === "wasm-contract_called"
             )!;
 
             loggedEvent = contractCalledEvent;
@@ -283,7 +283,7 @@ async function executeITSHubMessage({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for ITS Hub message to be executed`,
+        `Error: ${error.message}. Waiting for ITS Hub message to be executed`
       );
     }
 
@@ -320,7 +320,7 @@ async function constructTransferProof({
   } '${stringify(constructProofCall)}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
   } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-    relayerConfig[`config`][`environment`],
+    relayerConfig[`config`][`environment`]
   )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   let loggedEvent: LoggedEvent | null = null;
@@ -350,7 +350,7 @@ async function constructTransferProof({
             continue;
           } else {
             const contractCalledEvent = firstLog.events.find(
-              ({ type }) => type === "wasm-proof_under_construction",
+              ({ type }) => type === "wasm-proof_under_construction"
             )!;
 
             loggedEvent = contractCalledEvent;
@@ -363,7 +363,7 @@ async function constructTransferProof({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for transfer proof to be constructed...`,
+        `Error: ${error.message}. Waiting for transfer proof to be constructed...`
       );
     }
 
@@ -371,12 +371,12 @@ async function constructTransferProof({
   }
 
   const multisigSessionIdAttribute = loggedEvent!.attributes.find(
-    ({ key }) => key === "multisig_session_id",
+    ({ key }) => key === "multisig_session_id"
   );
 
   if (multisigSessionIdAttribute === undefined) {
     throw new Error(
-      `Multisig session ID attribute not found in proof under construction event`,
+      `Multisig session ID attribute not found in proof under construction event`
     );
   }
 
@@ -415,7 +415,7 @@ const getProof = async ({
             ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
-        },
+        }
       ).toString();
 
       const parsed = JSON.parse(output);
@@ -440,7 +440,7 @@ const getProof = async ({
 };
 
 async function submitTransactionBlob(
-  args: WithRelayerConfig<{ txBlob: string }>,
+  args: WithRelayerConfig<{ txBlob: string }>
 ): Promise<SubmitResponse> {
   console.log(`Submitting transaction blob: ${args.txBlob}`);
   const request: SubmitRequest = {
@@ -453,7 +453,7 @@ async function submitTransactionBlob(
   const response = await client.request(request);
 
   console.log(
-    `https://devnet.xrpl.org/transactions/${response.result.tx_json.hash}`,
+    `https://devnet.xrpl.org/transactions/${response.result.tx_json.hash}`
   );
 
   return response;
@@ -476,7 +476,7 @@ async function verifyProverMessage({
   } '${stringify(verifyMessageCall)}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
   } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-    relayerConfig[`config`][`environment`],
+    relayerConfig[`config`][`environment`]
   )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   while (true) {
@@ -495,7 +495,7 @@ async function verifyProverMessage({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for prover message to be verified...`,
+        `Error: ${error.message}. Waiting for prover message to be verified...`
       );
     }
 
@@ -526,7 +526,7 @@ async function confirmTxStatus({
   } '${stringify(confirmTxStatusCall)}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
   } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-    relayerConfig[`config`][`environment`],
+    relayerConfig[`config`][`environment`]
   )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   while (true) {
@@ -545,7 +545,7 @@ async function confirmTxStatus({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for transaction status to be confirmed...`,
+        `Error: ${error.message}. Waiting for transaction status to be confirmed...`
       );
     }
 
@@ -561,7 +561,7 @@ async function handleContractCallEvent(
   payload: ContractCallEvent[`payload`],
   txHash: string,
   index: number,
-  relayerConfig: AugmentedRelayerConfig,
+  relayerConfig: AugmentedRelayerConfig
 ) {
   console.log("ContractCall Event Detected:");
   console.log("Sender:", sender);
@@ -650,14 +650,14 @@ const listenToEventsOnNewBlock = async ({
   relayerConfig,
 }: WithRelayerConfig<{}>) => {
   const provider = new ethers.JsonRpcProvider(
-    relayerConfig.config["chains"]["xrpl-evm-sidechain"]["rpc"]["http"],
+    relayerConfig.config["chains"]["xrpl-evm-sidechain"]["rpc"]["http"]
   );
   const contract = new ethers.Contract(
     relayerConfig.config["chains"]["xrpl-evm-sidechain"][
       "native_gateway_address"
     ],
     IAxelarGateway,
-    provider,
+    provider
   );
 
   const filter = contract.filters.ContractCall();
@@ -669,7 +669,7 @@ const listenToEventsOnNewBlock = async ({
       console.log(
         `Fetching logs from block ${
           lastProcessedBlock + 1
-        } to ${blockNumber}...`,
+        } to ${blockNumber}...`
       );
       // Update the last processed block
       const prevLastProcessedBlock = lastProcessedBlock;
@@ -701,7 +701,7 @@ const listenToEventsOnNewBlock = async ({
           event.args.payload,
           txHash,
           index,
-          relayerConfig,
+          relayerConfig
         );
       });
     } catch (error) {

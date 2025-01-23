@@ -70,7 +70,7 @@ export type RouteITSHubMessageOutput = {
 };
 
 export function isRouteITSMessageOutput(
-  output: any,
+  output: any
 ): output is RouteITSHubMessageOutput {
   return (
     output.txhash !== undefined &&
@@ -129,13 +129,13 @@ type GetProofSuccessOutputForRelayToXRPL = {
 };
 
 export function isAxelarExecuteCommandOutput(
-  output: any,
+  output: any
 ): output is AxelarExecuteCommandOutput {
   return output.logs !== undefined && Array.isArray(output.logs);
 }
 
 export function isGetProofSuccessOutputForRelayToEVM(
-  output: any,
+  output: any
 ): output is GetProofSuccessOutputForRelayToEVM {
   return (
     output.data !== undefined &&
@@ -147,7 +147,7 @@ export function isGetProofSuccessOutputForRelayToEVM(
 }
 
 export function isGetProofSuccessOutputForRelayToXRPL(
-  output: any,
+  output: any
 ): output is GetProofSuccessOutputForRelayToXRPL {
   return (
     output.data !== undefined &&

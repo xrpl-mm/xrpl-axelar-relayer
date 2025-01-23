@@ -15,7 +15,7 @@ async function sendMessageFromXRPLtoEVM() {
 
   const payloadData: Buffer = abi.rawEncode(
     ["bytes", "string"],
-    [getBytes("0x1212"), "asdfasdfswea"],
+    [getBytes("0x1212"), "asdfasdfswea"]
   );
 
   const payloadDataHex = payloadData.toString("hex");
@@ -56,7 +56,7 @@ async function sendMessageFromXRPLtoEVM() {
       {
         Memo: {
           MemoData: Buffer.from(
-            relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+            relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`]
           )
             .toString("hex")
             .toUpperCase(),
@@ -75,7 +75,7 @@ async function sendMessageFromXRPLtoEVM() {
   };
 
   const provider = new Client(
-    relayerConfig.config[`chains`][`xrpl`][`rpc`][`ws`],
+    relayerConfig.config[`chains`][`xrpl`][`rpc`][`ws`]
   );
   await provider.connect();
   const autoFilledTx = await provider.autofill(paymentTx);

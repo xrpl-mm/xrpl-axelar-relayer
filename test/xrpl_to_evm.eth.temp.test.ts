@@ -5,8 +5,6 @@ import { Buffer } from "node:buffer";
 import { createPayloadHash } from "../src/utils.ts";
 import { bootstrap } from "../src/bootstrap.ts";
 
-console.log(`called`);
-
 async function sendMessageFromXRPLtoEVM() {
   const relayerConfig = bootstrap();
   // Can always get a new one from https://xrpl.org/resources/dev-tools/xrp-faucets
@@ -24,20 +22,35 @@ async function sendMessageFromXRPLtoEVM() {
 
   const payloadData: Buffer = abi.rawEncode(
     ["bytes", "string"],
-    [getBytes("0x1212"), "asdfasdfswea"],
+    [getBytes("0x1212121233aabb"), "asdfasdfswea"]
   );
 
   const payloadDataHex = payloadData.toString("hex");
 
-  // Post to localhost:8001
-  const res = await fetch("http://localhost:3000/payload-from-xrpl", {
+  // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  //
+  // One of these two should be used
+  //
+  // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+  // For local relayer
+  // const res = await fetch("http://localhost:3000/payload-from-xrpl", {
+  //   method: "POST",
+  //   headers: {
+  //     "Content-Type": "application/json",
+  //   },
+  //   body: JSON.stringify({
+  //     payload: payloadDataHex,
+  //   }),
+  // }).then((res) => res.json());
+
+  // For Common Prefix's relayer
+  const res = await fetch("http://45.77.227.11:5001/payload", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      Authorization: "Bearer f8a503c8-8d19-43af-9c69-d8357ee66997",
     },
-    body: JSON.stringify({
-      payload: payloadDataHex,
-    }),
+    body: payloadDataHex,
   }).then((res) => res.json());
 
   console.log(`res: ${res.message}`);
@@ -47,7 +60,7 @@ async function sendMessageFromXRPLtoEVM() {
   console.log(
     `sending to ${
       relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`]
-    }`,
+    }`
   );
 
   const paymentTx: Payment = {
@@ -75,7 +88,7 @@ async function sendMessageFromXRPLtoEVM() {
       {
         Memo: {
           MemoData: Buffer.from(
-            relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
+            relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`]
           )
             .toString("hex")
             .toUpperCase(),
@@ -94,7 +107,7 @@ async function sendMessageFromXRPLtoEVM() {
   };
 
   const provider = new Client(
-    relayerConfig.config[`chains`][`xrpl`][`rpc`][`ws`],
+    relayerConfig.config[`chains`][`xrpl`][`rpc`][`ws`]
   );
   await provider.connect();
   const autoFilledTx = await provider.autofill(paymentTx);

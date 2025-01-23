@@ -57,11 +57,11 @@ export class AugmentedRelayerConfig {
     this.config = args.config;
 
     this.evmSidechainProvider = new JsonRpcProvider(
-      args.config[`chains`][`xrpl-evm-sidechain`][`rpc`][`http`],
+      args.config[`chains`][`xrpl-evm-sidechain`][`rpc`][`http`]
     );
     this.evmSidechainRelayingWallet = new Wallet(
       args.evmSidechainPrivateKey,
-      this.evmSidechainProvider,
+      this.evmSidechainProvider
     );
 
     this.xrplClient = new Client(args.config[`chains`][`xrpl`][`rpc`][`ws`]);

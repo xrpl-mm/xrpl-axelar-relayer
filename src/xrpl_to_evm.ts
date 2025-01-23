@@ -36,7 +36,7 @@ type SerializedUserMessage = {
             issuer: string;
             currency: string;
           },
-          string,
+          string
         ];
       };
   payload_hash: string;
@@ -60,7 +60,7 @@ const startSubscribeToXrplGateway = async ({
     console.log(
       `Successfully subscribed to ${
         relayerConfig.config[`chains`][`xrpl`][`native_gateway_address`]
-      }!`,
+      }!`
     );
   } else {
     console.error("Error subscribing: ", subscribeResponse);
@@ -101,10 +101,10 @@ const prepareVerifyMessages = ({
 }>) => {
   const tx_id = Array.from(new Uint8Array(Buffer.from(message.tx_hash, "hex")));
   const sourceAddressHex = xrplAccountToEvmAddress(
-    message.source_address,
+    message.source_address
   ).slice(2);
   const source_address = Array.from(
-    new Uint8Array(Buffer.from(sourceAddressHex, "hex")),
+    new Uint8Array(Buffer.from(sourceAddressHex, "hex"))
   );
   const amount: SerializedUserMessage["amount"] =
     typeof message.amount === "string"
@@ -165,7 +165,7 @@ const verifyMessage = async ({
   } '${verifyMessagesJson}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
   } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-    relayerConfig[`config`][`environment`],
+    relayerConfig[`config`][`environment`]
   )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   while (true) {
@@ -191,7 +191,7 @@ const verifyMessage = async ({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for verification to complete...`,
+        `Error: ${error.message}. Waiting for verification to complete...`
       );
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -257,7 +257,7 @@ const routeMessage = async ({
   } '${stringify(routeMessageCall)}' --keyring-backend test --from ${
     relayerConfig.config[`wallet_name`]
   } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-    relayerConfig[`config`][`environment`],
+    relayerConfig[`config`][`environment`]
   )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`;
 
   while (true) {
@@ -280,7 +280,7 @@ const routeMessage = async ({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for routing to complete...`,
+        `Error: ${error.message}. Waiting for routing to complete...`
       );
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -318,10 +318,10 @@ const executeItsHubMessage = async ({
               new Uint8Array(
                 Buffer.from(
                   xrplAccountToEvmAddress(user_message.source_address).slice(2),
-                  "hex",
-                ),
-              ),
-            ),
+                  "hex"
+                )
+              )
+            )
           )}`
         : `0x${uint8ArrToHex(user_message.source_address)}`,
     destinationAddress: `0x${user_message.destination_address}`,
@@ -344,7 +344,7 @@ const executeItsHubMessage = async ({
       interchainTransfer.destinationAddress,
       interchainTransfer.amount,
       interchainTransfer.data,
-    ],
+    ]
   );
 
   const hubMessage = abiCoder.encode(
@@ -353,7 +353,7 @@ const executeItsHubMessage = async ({
       3n,
       relayerConfig.config[`chains`][`xrpl-evm-sidechain`][`chain_id`],
       messageEncoded,
-    ],
+    ]
   );
 
   const txIdHex =
@@ -388,14 +388,14 @@ const executeItsHubMessage = async ({
         } '${stringify(contractCall)}' --keyring-backend test --from ${
           relayerConfig.config[`wallet_name`]
         } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-          relayerConfig[`config`][`environment`],
+          relayerConfig[`config`][`environment`]
         )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`,
         {
           env: {
             ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
-        },
+        }
       ).toString();
 
       const parsed = JSON.parse(output);
@@ -414,7 +414,7 @@ const executeItsHubMessage = async ({
             continue;
           } else {
             const contractCalledEvent = firstLog.events.find(
-              ({ type }) => type === "wasm-contract_called",
+              ({ type }) => type === "wasm-contract_called"
             )!;
 
             loggedEvent = contractCalledEvent;
@@ -428,7 +428,7 @@ const executeItsHubMessage = async ({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for ITS Hub message to be executed`,
+        `Error: ${error.message}. Waiting for ITS Hub message to be executed`
       );
     }
 
@@ -482,14 +482,14 @@ const routeITSHubMessage = async ({
         } '${stringify(routeMessages)}' --keyring-backend test --from ${
           relayerConfig.config[`wallet_name`]
         } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-          relayerConfig[`config`][`environment`],
+          relayerConfig[`config`][`environment`]
         )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`,
         {
           env: {
             ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
-        },
+        }
       ).toString();
 
       const parsed = JSON.parse(output);
@@ -499,7 +499,7 @@ const routeITSHubMessage = async ({
       if (isRouteITSMessageOutput(parsed)) {
         if (parsed.code === 0) {
           console.log(
-            `ITS Hub message route request submitted: ${parsed.txhash}`,
+            `ITS Hub message route request submitted: ${parsed.txhash}`
           );
           break;
         } else {
@@ -507,8 +507,8 @@ const routeITSHubMessage = async ({
             `Error: ITS Hub message routing failed (code is not 0): ${stringify(
               parsed,
               null,
-              2,
-            )}`,
+              2
+            )}`
           );
         }
       } else {
@@ -516,14 +516,14 @@ const routeITSHubMessage = async ({
           `Error: parsed output is not a RouteITSMessageOutput: ${stringify(
             parsed,
             null,
-            2,
-          )}`,
+            2
+          )}`
         );
       }
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for ITS Hub message to be routed`,
+        `Error: ${error.message}. Waiting for ITS Hub message to be routed`
       );
     }
 
@@ -531,6 +531,7 @@ const routeITSHubMessage = async ({
   }
 };
 
+// axelard tx wasm execute $XRPL_EVM_SIDECHAIN_MULTISIG_PROVER '{"construct_proof":[{"source_chain":"axelar","message_id":"0xd2025d86323034dabf4e8f3856501d29ba784a33493b61eb2189fac7d986dc9a-2088"}]}' "${ARGS[@]}"
 const constructTransferProof = async ({
   relayerConfig,
   messageId,
@@ -557,14 +558,14 @@ const constructTransferProof = async ({
         } '${stringify(constructProofCall)}' --keyring-backend test --from ${
           relayerConfig.config[`wallet_name`]
         } --keyring-dir ${relayerConfig.config["keyring_dir"]} ${axelardArgs(
-          relayerConfig[`config`][`environment`],
+          relayerConfig[`config`][`environment`]
         )} --node ${relayerConfig.config["chains"]["axelarnet"][`rpc`]}`,
         {
           env: {
             ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
-        },
+        }
       ).toString();
 
       const parsed = JSON.parse(output);
@@ -584,7 +585,7 @@ const constructTransferProof = async ({
             continue;
           } else {
             const contractCalledEvent = firstLog.events.find(
-              ({ type }) => type === "wasm-proof_under_construction",
+              ({ type }) => type === "wasm-proof_under_construction"
             )!;
 
             loggedEvent = contractCalledEvent;
@@ -597,7 +598,7 @@ const constructTransferProof = async ({
     } catch (e) {
       const error = e as Error;
       console.log(
-        `Error: ${error.message}. Waiting for transfer proof to be constructed...`,
+        `Error: ${error.message}. Waiting for transfer proof to be constructed...`
       );
     }
 
@@ -605,12 +606,12 @@ const constructTransferProof = async ({
   }
 
   const multisigSessionIdAttribute = loggedEvent!.attributes.find(
-    ({ key }) => key === "multisig_session_id",
+    ({ key }) => key === "multisig_session_id"
   );
 
   if (multisigSessionIdAttribute === undefined) {
     throw new Error(
-      `Multisig session ID attribute not found in proof under construction event`,
+      `Multisig session ID attribute not found in proof under construction event`
     );
   }
 
@@ -649,7 +650,7 @@ const getProof = async ({
             ...process.env,
             AXELARD_CHAIN_ID: `axelar-testnet-lisbon-3`,
           },
-        },
+        }
       ).toString();
 
       const parsed = JSON.parse(output);
@@ -657,7 +658,7 @@ const getProof = async ({
 
       if (isGetProofSuccessOutputForRelayToEVM(parsed)) {
         console.log(
-          `Proof constructed. Execute data: ${parsed.data.status.completed.execute_data}`,
+          `Proof constructed. Execute data: ${parsed.data.status.completed.execute_data}`
         );
 
         return {
@@ -695,7 +696,7 @@ export const sendExecuteDataToGateway = async ({
 
   if (!result) {
     throw new Error(
-      `Failed to send execute data to gateway: ${gatewayAddress}`,
+      `Failed to send execute data to gateway: ${gatewayAddress}`
     );
   }
 
@@ -724,7 +725,7 @@ export const executeITSTransfer = async ({
     // deno-lint-ignore ban-ts-comment
     // @ts-ignore
     IAxelarExecutable,
-    relayerConfig.evmSidechainRelayingWallet,
+    relayerConfig.evmSidechainRelayingWallet
   );
   console.log({
     commandId,
@@ -740,13 +741,13 @@ export const executeITSTransfer = async ({
     payload,
     {
       gasLimit: relayerConfig.config[`its_gas_limit`],
-    },
+    }
   );
   const result: ethers.TransactionReceipt | null = await tx.wait();
 
   if (!result) {
     throw new Error(
-      `Failed to execute ITS transfer on interchain token service.`,
+      `Failed to execute ITS transfer on interchain token service.`
     );
   }
 
@@ -754,8 +755,8 @@ export const executeITSTransfer = async ({
     `Executed ITS transfer on interchain token service. Transaction: ${stringify(
       result.toJSON(),
       null,
-      2,
-    )}`,
+      2
+    )}`
   );
 };
 
@@ -829,13 +830,13 @@ const parseTx = (args: WithRelayerConfig<{ tx: TransactionStream }>) => {
         break;
       default:
         console.log(
-          `Unknown memo: ${memo.Memo.MemoType}=${memo.Memo.MemoData}`,
+          `Unknown memo: ${memo.Memo.MemoType}=${memo.Memo.MemoData}`
         );
     }
   }
 
   const missingMemos = Object.entries(parsedMemo).filter(
-    ([, value]) => value === "",
+    ([, value]) => value === ""
   );
 
   if (missingMemos.length > 0) {

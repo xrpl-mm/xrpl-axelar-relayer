@@ -7,7 +7,7 @@ import { bootstrap } from "../src/bootstrap";
 // Secret
 // sEdTHrLSHKeYVr6PsMB8a1WzWpHqRgQ
 const XRPLDestination = xrplAccountToEvmAddress(
-  `rEjrYCKjc3yR4qokX1Yy4y4EPj924UndeC`,
+  `rEjrYCKjc3yR4qokX1Yy4y4EPj924UndeC`
 );
 
 console.log(`XRPL Destination: ${XRPLDestination}`);
@@ -28,11 +28,11 @@ async function sendMessageFromEVMToXRPL(amount: bigint) {
   const tokenContract = new ethers.Contract(
     tokenContractAddress,
     [`function approve(address spender, uint256 amount) public returns (bool)`],
-    augmentedRelayerConfig.evmSidechainRelayingWallet,
+    augmentedRelayerConfig.evmSidechainRelayingWallet
   );
   const approveResult = await tokenContract.approve(
     testingEnv.testingContractAddress,
-    amount,
+    amount
   );
 
   // wait for tx hash
@@ -63,14 +63,14 @@ async function sendMessageFromEVMToXRPL(amount: bigint) {
         type: "function",
       },
     ],
-    augmentedRelayerConfig.evmSidechainRelayingWallet,
+    augmentedRelayerConfig.evmSidechainRelayingWallet
   );
 
   console.log(`Sending token`);
 
   const sendResult = await testingContract.sendXRPToXRPL(
     testingEnv.destinationAddress,
-    amount,
+    amount
   );
 
   console.log(`Sent token: ${sendResult.hash}`);
@@ -79,5 +79,5 @@ async function sendMessageFromEVMToXRPL(amount: bigint) {
 // XRP is 18 decimals on EVM sidechain
 sendMessageFromEVMToXRPL(
   // 0.12 XRP (be careful not to send a lot, not to waste the token balance)
-  120000000000000000n,
+  120000000000000000n
 );
