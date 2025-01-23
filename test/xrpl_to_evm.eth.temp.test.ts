@@ -7,7 +7,7 @@ import { bootstrap } from "../src/bootstrap.ts";
 
 async function sendMessageFromXRPLtoEVM() {
   const relayerConfig = bootstrap();
-  // Can always get a new one from https://xrpl.org/resources/dev-tools/xrp-faucets
+  // ETH issuer secret on devnet.
   const SECRET = `ssXUdvqpJxycxMQJUCr2bvMf4kuvE`;
   const xrplWallet = Wallet.fromSeed(SECRET, {
     algorithm: ECDSA.secp256k1,
@@ -22,7 +22,7 @@ async function sendMessageFromXRPLtoEVM() {
 
   const payloadData: Buffer = abi.rawEncode(
     ["bytes", "string"],
-    [getBytes("0x1212121233aabb"), "asdfasdfswea"]
+    [getBytes("0xbb"), "asdfasdfswea"]
   );
 
   const payloadDataHex = payloadData.toString("hex");
